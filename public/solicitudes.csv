@@ -1,0 +1,8 @@
+﻿0,1,2,3
+"Número de Radicado",Asunto,Tipo,Estado
+RAD001,"Consulta sobre servicios",Queja,Cerrada
+RAD002,"Queja por mal servicio",Queja,"En revisión"
+RAD003,"Reclamo de factura",Reclamo,Cerrada
+RAD004,"Sugerencia de mejora",Sugerencia,Pendiente
+SOL-20250504213804-832,sdf,Petición,Pendiente
+SOL-20250504214229-989,,Petición,Pendiente
