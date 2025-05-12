@@ -2,7 +2,7 @@
     <div class="max-w-3xl mx-auto bg-white p-6 rounded-xl shadow">
         <h2 class="text-2xl font-semibold mb-4">Editar Solicitud</h2>
 
-        <form action="{{ route('grupos.solicitudes.update', ['grupo' => $grupo->id, 'solicitud' => $solicitud->id]) }}" method="POST">
+        <form action="{{ route('grupos.solicitudes.update', ['grupo' => $grupo, 'solicitud' => $solicitud->id]) }}" method="POST">
             @csrf
             @method('PUT')
 

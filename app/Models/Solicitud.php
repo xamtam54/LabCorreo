@@ -22,6 +22,7 @@ class Solicitud extends Model
         'usuario_id',
         'estado_id',
         'firma_digital',
+        'grupo_id', 
     ];
 
     public function tipoSolicitud()
@@ -58,5 +59,8 @@ class Solicitud extends Model
     {
         return $this->hasMany(Reporte::class);
     }
-
+    public function grupo()
+    {
+        return $this->belongsTo(Grupo::class);
+    }
 }

@@ -38,6 +38,20 @@
                             {{ __('Profile') }}
                         </x-dropdown-link>
 
+                        <!-- Enlace a Usuarios -->
+                        @can('administrar-usuarios')
+                        <x-dropdown-link :href="route('usuarios.index')">
+                            {{ __('Usuarios') }}
+                        </x-dropdown-link>
+                        @endcan
+
+                        <!-- Enlace a Grupos -->
+                        @can('administrar-grupos')
+                        <x-dropdown-link :href="route('grupos.index')">
+                            {{ __('Grupos') }}
+                        </x-dropdown-link>
+                        @endcan
+
                         <!-- Authentication -->
                         <form method="POST" action="{{ route('logout') }}">
                             @csrf

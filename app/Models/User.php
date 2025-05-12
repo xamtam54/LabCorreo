@@ -6,9 +6,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class User extends Authenticatable
 {
+    use SoftDeletes;
     /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory, Notifiable;
 
@@ -58,6 +60,17 @@ class User extends Authenticatable
             ]);
         });
     }
+
+    public function assignRole($rolId)
+    {
+        $rol = Rol::find($rolId);
+
+        if ($rol) {
+            $this->usuario->rol()->associate($rol);
+            $this->usuario->save();
+        }
+    }
+
     public function usuario()
     {
         return $this->hasOne(Usuario::class, 'id');
