@@ -23,6 +23,17 @@ class Grupo extends Model
             } while (Grupo::where('codigo', $codigo)->exists());
             $grupo->codigo = $codigo;
         });
+
+        static::deleting(function ($grupo) {
+        if (!$grupo->isForceDeleting()) {
+            $grupo->solicitudes()->delete();
+        }});
+
+        //para restaurar solicitudes en automatico no implementado aun
+        static::restored(function ($grupo) {
+        $grupo->solicitudes()->withTrashed()->restore();
+        });
+
     }
 
     public function usuarios()

@@ -7,6 +7,7 @@ use App\Models\Grupo;
 use App\Models\TipoSolicitud;
 use App\Models\MedioRecepcion;
 use App\Models\EstadoSolicitud;
+use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 
@@ -18,41 +19,20 @@ class SolicitudController extends Controller
 
     public function index(Request $request, Grupo $grupo)
     {
-        $query = Solicitud::with(['tipoSolicitud', 'estado'])
-        ->where('grupo_id', $grupo->id);
+        $solicitudes = Solicitud::with(['tipoSolicitud', 'estado'])
+            ->where('grupo_id', $grupo->id)
+            ->filtrarTipo($request->tipo)
+            ->filtrarEstado($request->estado)
+            ->filtrarFecha($request->fecha)
+            ->ordenarPor($request->orden)
+            ->get();
 
-
-        // Filtrar por tipo
-        if ($request->filled('tipo')) {
-            $query->where('tipo_solicitud_id', $request->tipo);
-        }
-
-        // Filtrar por estado
-        if ($request->filled('estado')) {
-            $query->where('estado_id', $request->estado);
-        }
-
-        // Filtrar por fecha
-        if ($request->filled('fecha')) {
-            $fecha = \Carbon\Carbon::parse($request->fecha)->startOfDay();
-            $fin = \Carbon\Carbon::parse($request->fecha)->endOfDay();
-            $query->whereBetween('created_at', [$fecha, $fin]);
-        }
-
-        // Ordenamiento
-        if ($request->filled('orden')) {
-            $orden = $request->orden === 'antiguos' ? 'asc' : 'desc';
-            $query->orderBy('created_at', $orden);
-        } else {
-            $query->latest();
-        }
-
-        $solicitudes = $query->get();
         $tipos = TipoSolicitud::all();
         $estados = EstadoSolicitud::all();
 
         return view('grupos.solicitudes.index', compact('solicitudes', 'tipos', 'estados', 'grupo'));
     }
+
     public function create(Grupo $grupo)
     {
         return view('grupos.solicitudes.create', compact('grupo'));
@@ -91,7 +71,7 @@ class SolicitudController extends Controller
         $mediosRecepcion = MedioRecepcion::pluck('nombre', 'id');
         $estados = EstadoSolicitud::pluck('nombre', 'id');
 
-        return view('solicitudes.edit', compact('solicitud', 'tiposSolicitud', 'mediosRecepcion', 'estados', 'grupo'));
+        return view('grupos.solicitudes.edit', compact('solicitud', 'tiposSolicitud', 'mediosRecepcion', 'estados', 'grupo'));
     }
 
 
@@ -134,14 +114,73 @@ class SolicitudController extends Controller
         return redirect()->route('grupos.solicitudes.index', $grupo)->with('success', 'Solicitud eliminada.');
     }
 
-    public function overview()
+
+    public function overview(Request $request)
     {
-        $solicitudes = Solicitud::with('tipoSolicitud', 'estado')->get();
+        $query = Solicitud::with('tipoSolicitud', 'estado');
+
+        if ($request->filled('fecha_inicio')) {
+            $query->whereDate('fecha_ingreso', '>=', $request->fecha_inicio);
+        }
+
+        if ($request->filled('fecha_fin')) {
+            $query->whereDate('fecha_ingreso', '<=', $request->fecha_fin);
+        }
+
+        if ($request->filled('usuario_id')) {
+            $query->where('usuario_id', $request->usuario_id);
+        }
+
+        if ($request->filled('grupo_id')) {
+            $query->where('grupo_id', $request->grupo_id);
+        }
+
+        $solicitudes = $query->get();
 
         $porTipo = $solicitudes->groupBy('tipoSolicitud.nombre')->map->count();
         $porEstado = $solicitudes->groupBy('estado.nombre')->map->count();
 
-        return view('solicitudes.overview', compact('porTipo', 'porEstado', 'solicitudes'));
+        $usuarios = User::all();  // Puedes optimizar esto con select('id', 'name')
+        $grupos = Grupo::all();
+
+        return view('solicitudes.overview', compact('porTipo', 'porEstado', 'solicitudes', 'usuarios', 'grupos'));
     }
+
+    public function dashboard(Request $request)
+    {
+        $user = Auth::user();
+        $usuario = $user->usuario; // relación que tienes que definir en User.php
+
+        $tipos = TipoSolicitud::all();
+        $estados = EstadoSolicitud::all();
+
+        $grupoIds = $usuario ? $usuario->grupos->pluck('id') : collect([]);
+        $tieneGrupos = $grupoIds->isNotEmpty();
+
+        $solicitudes = Solicitud::whereIn('grupo_id', $grupoIds)
+            ->when($request->filled('tipo'), fn($q) => $q->where('tipo_solicitud_id', $request->tipo))
+            ->when($request->filled('estado'), fn($q) => $q->where('estado_id', $request->estado))
+            ->when($request->filled('fecha'), fn($q) => $q->whereDate('fecha_ingreso', $request->fecha))
+            ->when($request->orden == 'recientes', fn($q) => $q->orderBy('fecha_ingreso', 'desc'))
+            ->when($request->orden == 'antiguos', fn($q) => $q->orderBy('fecha_ingreso', 'asc'))
+            ->when($request->orden == 'prioridad', fn($q) => $q->orderBy('prioridad', 'desc'))
+            ->with(['grupo', 'estado', 'tipoSolicitud'])
+            ->get();
+
+        $grupo = $tieneGrupos ? Grupo::find($grupoIds->first()) : null;
+
+    return view('solicitudes.dashboard', compact('solicitudes', 'tipos', 'estados', 'tieneGrupos', 'grupo'));
+    }
+
+    public function soloPrioridad()
+    {
+        $solicitudes = Solicitud::with(['tipoSolicitud', 'estado', 'grupo'])
+            ->ordenarPor('prioridad')
+            ->get();
+
+        return view('solicitudes.dashboard', compact('solicitudes'));
+    }
+
+
 
 }

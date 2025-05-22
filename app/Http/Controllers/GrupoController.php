@@ -58,14 +58,13 @@ class GrupoController extends Controller
         // Validación de los datos
         $request->validate([
             'nombre' => 'required|string',
-            'password' => 'nullable|string|min:6',
+            'descripcion' => 'nullable|string',
         ]);
 
         // Actualizar los datos del grupo
-        $grupo->nombre = $request->nombre;
-        if ($request->filled('password')) {
-            $grupo->contrasena = Hash::make($request->password);
-        }
+        $grupo->nombre = $request->input('nombre');
+        $grupo->descripcion = $request->input('descripcion');
+
         $grupo->save();
 
         return redirect()->route('grupos.index')->with('success', 'Grupo actualizado');

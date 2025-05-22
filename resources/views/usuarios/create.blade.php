@@ -1,50 +1,52 @@
 <x-app-layout>
-    <div class="container py-5">
-        <h1 class="mb-4">Crear Usuario</h1>
+    <div class="min-h-screen bg-gray-50 py-8 px-6">
+        <div class="max-w-4xl mx-auto bg-white p-8 rounded-xl shadow-md border border-gray-200">
+            <h1 class="text-3xl font-bold text-center text-gray-800 mb-8">Crear Usuario</h1>
 
-        <form action="{{ route('usuarios.store') }}" method="POST">
-            @csrf
-            <div class="row">
-                <div class="col-md-6">
-                    <div class="mb-3">
-                        <label for="name" class="form-label">Nombre completo</label>
-                        <input type="text" id="name" name="name" class="form-control" required value="{{ old('name') }}">
+            <form action="{{ route('usuarios.store') }}" method="POST">
+                @csrf
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label for="name" class="block text-sm font-semibold text-gray-700 mb-2">Nombre completo</label>
+                        <input type="text" id="name" name="name"
+                               class="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                               required value="{{ old('name') }}">
+                    </div>
+
+                    <div>
+                        <label for="email" class="block text-sm font-semibold text-gray-700 mb-2">Correo electrónico</label>
+                        <input type="email" id="email" name="email"
+                               class="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                               required value="{{ old('email') }}">
                     </div>
                 </div>
 
-                <div class="col-md-6">
-                    <div class="mb-3">
-                        <label for="email" class="form-label">Correo electrónico</label>
-                        <input type="email" id="email" name="email" class="form-control" required value="{{ old('email') }}">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+                    <div>
+                        <label for="password" class="block text-sm font-semibold text-gray-700 mb-2">Contraseña</label>
+                        <input type="password" id="password" name="password"
+                               class="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                               required>
                     </div>
-                </div>
-            </div>
 
-            <div class="row">
-                <div class="col-md-6">
-                    <div class="mb-3">
-                        <label for="password" class="form-label">Contraseña</label>
-                        <input type="password" id="password" name="password" class="form-control" required>
-                    </div>
-                </div>
-
-                <div class="col-md-6">
-                    <div class="mb-3">
-                        <label for="rol_id" class="form-label">Rol</label>
-                        <select name="rol_id" id="rol_id" class="form-select" required>
+                    <div>
+                        <label for="rol_id" class="block text-sm font-semibold text-gray-700 mb-2">Rol</label>
+                        <select name="rol_id" id="rol_id"
+                                class="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                                required>
                             @foreach ($roles as $rol)
                                 <option value="{{ $rol->id }}">{{ $rol->nombre }}</option>
                             @endforeach
                         </select>
                     </div>
                 </div>
-            </div>
 
-            <div class="d-flex justify-content-between">
-                <button type="submit" class="btn btn-success">Crear</button>
-                <a href="{{ route('usuarios.index') }}" class="btn btn-secondary">Cancelar</a>
-            </div>
-        </form>
+                <div class="flex justify-end mt-8 space-x-4">
+                    <x-gray-button text="Cancelar" :href="route('usuarios.index')" />
+                    <x-blue-button text="Crear" type="submit" />
+                </div>
+            </form>
+        </div>
     </div>
 </x-app-layout>
-

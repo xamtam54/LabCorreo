@@ -28,10 +28,12 @@ class CatalogosSeeder extends Seeder
 
         // Estados de la solicitud
         DB::table('estado_solicitud')->insert([
-            ['nombre' => 'Pendiente', 'descripcion' => 'Solicitud recibida pero aún no atendida.'],
-            ['nombre' => 'En Proceso', 'descripcion' => 'La solicitud está siendo gestionada.'],
-            ['nombre' => 'Respondido', 'descripcion' => 'Se ha dado una respuesta al solicitante.'],
-            ['nombre' => 'Cerrado', 'descripcion' => 'El caso fue cerrado definitivamente.']
+            ['nombre' => 'Recibida', 'descripcion' => 'La solicitud ha ingresado y aún no ha sido procesada.'],
+            ['nombre' => 'En Revisión', 'descripcion' => 'La solicitud está siendo gestionada; quedan más de 10 días para completarla.'],
+            ['nombre' => 'Por Vencer', 'descripcion' => 'La solicitud está próxima a su vencimiento (quedan 5 días).'],
+            ['nombre' => 'Respondida', 'descripcion' => 'La solicitud fue atendida pero falta adjuntar el documento requerido.'],
+            ['nombre' => 'Cerrada', 'descripcion' => 'La solicitud fue respondida y el documento fue adjuntado de ser necesario.'],
         ]);
+
     }
 }

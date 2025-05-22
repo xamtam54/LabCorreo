@@ -1,24 +1,55 @@
-@extends('layouts.app')
+<x-app-layout>
+<div class="min-h-screen bg-gray-50 py-8 px-6">
+    <div class="container mx-auto">
+        <h1 class="text-4xl font-extrabold mb-8 text-center text-gray-800">
+            Solicitudes de Todos tus Grupos
+        </h1>
 
-@section('content')
-<div class="p-6 bg-gray-50 min-h-screen">
-    <h1 class="text-3xl font-bold text-gray-800 mb-6">Panel de Correspondencia</h1>
+        @if($solicitudes->isEmpty())
+            <div class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-6" role="alert">
+                <p>No hay solicitudes registradas.</p>
+            </div>
+        @else
+            <div class="bg-white rounded-xl shadow p-6">
+                <h2 class="text-2xl font-semibold mb-4 text-gray-800">Listado de Solicitudes por Prioridad</h2>
 
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <a href="{{ route('correos.create') }}" class="bg-white p-5 rounded-2xl shadow-md hover:shadow-lg transition">
-            <h2 class="text-xl font-semibold text-purple-600 mb-2">Nuevo Correo</h2>
-            <p class="text-gray-500">Registrar una nueva correspondencia entrante o saliente.</p>
-        </a>
+                <table class="w-full table-auto text-sm">
+                    <thead class="bg-gray-100 text-gray-700">
+                        <tr>
+                            <th class="p-3 text-left"># Radicado</th>
+                            <th class="p-3 text-left">Asunto</th>
+                            <th class="p-3 text-left">Tipo</th>
+                            <th class="p-3 text-left">Estado</th>
+                            <th class="p-3 text-left">Grupo</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($solicitudes as $solicitud)
+                            @php
+                                $estadoNombre = $solicitud->estado->nombre ?? '';
+                                $estadoColor = match($estadoNombre) {
+                                    'Recibida' => 'border-l-8 border-blue-400 bg-blue-50',
+                                    'En Revisión' => 'border-l-8 border-orange-400 bg-orange-50',
+                                    'Por Vencer' => 'border-l-8 border-red-600 bg-red-100',
+                                    'Respondida' => 'border-l-8 border-yellow-400 bg-yellow-50',
+                                    'Cerrada' => 'border-l-8 border-green-600 bg-green-100',
+                                    default => 'border-l-8 border-gray-300 bg-white',
+                                };
+                            @endphp
 
-        <a href="{{ route('correos.index') }}" class="bg-white p-5 rounded-2xl shadow-md hover:shadow-lg transition">
-            <h2 class="text-xl font-semibold text-blue-600 mb-2">Ver Correspondencia</h2>
-            <p class="text-gray-500">Consulta y gestiona los correos registrados.</p>
-        </a>
-
-        <a href="#" class="bg-white p-5 rounded-2xl shadow-md hover:shadow-lg transition">
-            <h2 class="text-xl font-semibold text-green-600 mb-2">Reportes</h2>
-            <p class="text-gray-500">Visualiza estadísticas y reportes del sistema.</p>
-        </a>
+                            <tr onclick="window.location='{{ route('grupos.solicitudes.index', $solicitud->grupo_id) }}'"
+                                class="{{ $estadoColor }} hover:bg-opacity-80 transition-shadow shadow-sm hover:shadow-md cursor-pointer">
+                                <td class="p-4 font-semibold text-gray-900">{{ $solicitud->numero_radicado }}</td>
+                                <td class="p-4 text-gray-800">{{ $solicitud->asunto }}</td>
+                                <td class="p-4 text-gray-700 italic">{{ $solicitud->tipoSolicitud->nombre ?? 'No definido' }}</td>
+                                <td class="p-4 font-semibold text-gray-900">{{ $solicitud->estado->nombre ?? 'Sin estado' }}</td>
+                                <td class="p-4 text-gray-700">{{ $solicitud->grupo->nombre ?? 'Grupo desconocido' }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        @endif
     </div>
 </div>
-@endsection
+</x-app-layout>

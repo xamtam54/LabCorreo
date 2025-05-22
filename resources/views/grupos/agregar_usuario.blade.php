@@ -1,3 +1,4 @@
+{{--eliminado pero es funcional--}}
 <x-app-layout>
     <div class="container">
         <h2>Agregar usuario al grupo: {{ $grupo->nombre }}</h2>

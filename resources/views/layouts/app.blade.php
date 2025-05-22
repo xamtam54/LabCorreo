@@ -18,10 +18,9 @@
         <div class="min-h-screen bg-gray-100 dark:bg-gray-900">
             @include('layouts.navigation')
 
-            <!-- Page Heading -->
             @isset($header)
-                <header class="bg-white dark:bg-gray-800 shadow">
-                    <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+                <header class="fixed top-0 left-0 right-0 h-16 bg-white shadow z-20">
+                    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full flex items-center">
                         {{ $header }}
                     </div>
                 </header>
@@ -29,7 +28,6 @@
 
             @include('layouts.sidebar')
 
-            <!-- Page Heading -->
             @isset($sidebar)
                 <header class="bg-white dark:bg-gray-800 shadow">
                     <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
@@ -38,10 +36,10 @@
                 </header>
             @endisset
 
-            <!-- Page Content -->
-            <main>
+            <main class="ml-16 sm:ml-64 pt-16 transition-all duration-300">
                 {{ $slot }}
             </main>
+
         </div>
     </body>
 </html>
