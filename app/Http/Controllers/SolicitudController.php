@@ -9,6 +9,11 @@ use App\Models\MedioRecepcion;
 use App\Models\EstadoSolicitud;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
+use App\Models\Documento;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\DB;
+use Carbon\Carbon;
+
 use Illuminate\Support\Facades\Log;
 
 
@@ -37,6 +42,7 @@ class SolicitudController extends Controller
     {
         return view('grupos.solicitudes.create', compact('grupo'));
     }
+
     public function store(Request $request, Grupo $grupo)
     {
         $data = $request->validate([
@@ -44,6 +50,7 @@ class SolicitudController extends Controller
             'tipo_solicitud_id' => 'required|exists:tipo_solicitud,id',
             'remitente' => 'required|string|max:255',
             'asunto' => 'nullable|string',
+            'contenido' => 'nullable|string',
             'medio_recepcion_id' => 'required|exists:medio_recepcion,id',
             'fecha_ingreso' => 'required|date',
             'documento_adjunto_id' => 'nullable|exists:documento,id',
@@ -51,6 +58,7 @@ class SolicitudController extends Controller
             'estado_id' => 'required|exists:estado_solicitud,id',
             'firma_digital' => 'boolean',
         ]);
+
 
         $data['usuario_id'] = Auth::user()->id;
         $data['grupo_id'] = $grupo->id;
@@ -60,47 +68,90 @@ class SolicitudController extends Controller
         return redirect()->route('grupos.solicitudes.index', $grupo)->with('success', 'Solicitud creada con éxito.');
     }
 
+    public function update(Request $request, Grupo $grupo, Solicitud $solicitud)
+    {
+        Log::info('Usuario autenticado:', ['user' => Auth::user()]);
+
+        // Validar campos base
+        $rules = [
+            'tipo_solicitud_id' => 'required|exists:tipo_solicitud,id',
+            'remitente' => 'required|string|max:255',
+            'asunto' => 'nullable|string|max:255',
+            'contenido' => 'nullable|string',
+            'medio_recepcion_id' => 'required|exists:medio_recepcion,id',
+            'fecha_ingreso' => 'required|date',
+            'fecha_vencimiento' => 'nullable|date|after_or_equal:fecha_ingreso',
+            'estado_id' => 'required|exists:estado_solicitud,id',
+            'firma_digital' => 'boolean',
+        ];
+
+        // Si firma_digital es true, archivo puede ser obligatorio (según lógica)
+        if ($request->boolean('firma_digital')) {
+            $rules['archivo'] = 'nullable|file|max:10240';
+        }
+
+        $data = $request->validate($rules);
+        Log::info('Datos validados para actualización:', $data);
+
+        $data['usuario_id'] = Auth::user()->id;
+
+        // Manejo del archivo
+        if ($request->boolean('firma_digital')) {
+            if ($request->hasFile('archivo')) {
+                // Elimina archivo anterior si existe
+                if ($solicitud->documento_adjunto) {
+                    Storage::delete($solicitud->documento_adjunto->ruta);
+                    $solicitud->documento_adjunto->delete();
+                }
+
+                // Guarda el nuevo archivo
+                $path = $request->file('archivo')->store('documentos');
+                Log::info('Archivo actualizado guardado en:', ['path' => $path]);
+
+                $documento = Documento::create([
+                    'editor_id' => Auth::user()->id,
+                    'nombre_archivo' => $request->file('archivo')->getClientOriginalName(),
+                    'tamano_mb' => round($request->file('archivo')->getSize() / 1048576, 2),
+                    'ruta' => $path,
+                ]);
+
+                Log::info('Documento actualizado creado:', ['documento' => $documento]);
+
+                $data['documento_adjunto_id'] = $documento->id;
+            } else {
+                // Mantener documento actual si no se envía uno nuevo
+                $data['documento_adjunto_id'] = $solicitud->documento_adjunto_id;
+            }
+        } else {
+            // Si ya no se requiere firma digital, se elimina documento si había
+            if ($solicitud->documento_adjunto) {
+                Storage::delete($solicitud->documento_adjunto->ruta);
+                $solicitud->documento_adjunto->delete();
+            }
+            $data['documento_adjunto_id'] = null;
+        }
+
+        $solicitud->update($data);
+        Log::info('Solicitud actualizada:', ['solicitud' => $solicitud]);
+
+        return redirect()->route('grupos.solicitudes.index', $grupo)
+                        ->with('success', 'Solicitud actualizada correctamente.');
+    }
+
     public function edit(Grupo $grupo, Solicitud $solicitud)
     {
-
         if ($solicitud->grupo_id !== $grupo->id) {
             abort(403, 'No tienes permiso para editar esta solicitud.');
         }
+
+        // Cargar la relación correcta
+        $solicitud->load('documento');
 
         $tiposSolicitud = TipoSolicitud::pluck('nombre', 'id');
         $mediosRecepcion = MedioRecepcion::pluck('nombre', 'id');
         $estados = EstadoSolicitud::pluck('nombre', 'id');
 
         return view('grupos.solicitudes.edit', compact('solicitud', 'tiposSolicitud', 'mediosRecepcion', 'estados', 'grupo'));
-    }
-
-
-    public function update(Request $request, Grupo $grupo, Solicitud $solicitud)
-    {
-
-        // Verificar que la solicitud pertenece al grupo
-        if ($solicitud->grupo_id !== $grupo->id) {
-            abort(403, 'No tienes permiso para modificar esta solicitud.');
-        }
-
-        $data = $request->validate([
-            'numero_radicado' => 'required|string|unique:solicitud,numero_radicado,' . $solicitud->id,
-            'tipo_solicitud_id' => 'required|exists:tipo_solicitud,id',
-            'remitente' => 'required|string|max:255',
-            'asunto' => 'nullable|string',
-            'medio_recepcion_id' => 'required|exists:medio_recepcion,id',
-            'fecha_ingreso' => 'required|date',
-            'documento_adjunto_id' => 'nullable|exists:documento,id',
-            'fecha_vencimiento' => 'nullable|date',
-            'estado_id' => 'required|exists:estado_solicitud,id',
-            'firma_digital' => 'nullable|boolean',
-        ]);
-
-        $data['firma_digital'] = $request->has('firma_digital') ? true : false;
-
-        $solicitud->update($data);
-
-        return redirect()->route('grupos.solicitudes.index', $grupo)->with('success', 'Solicitud actualizada.');
     }
 
 
@@ -113,7 +164,6 @@ class SolicitudController extends Controller
 
         return redirect()->route('grupos.solicitudes.index', $grupo)->with('success', 'Solicitud eliminada.');
     }
-
 
     public function overview(Request $request)
     {
@@ -169,18 +219,71 @@ class SolicitudController extends Controller
 
         $grupo = $tieneGrupos ? Grupo::find($grupoIds->first()) : null;
 
-    return view('solicitudes.dashboard', compact('solicitudes', 'tipos', 'estados', 'tieneGrupos', 'grupo'));
+        return view('solicitudes.dashboard', compact('solicitudes', 'tipos', 'estados', 'tieneGrupos', 'grupo'));
     }
 
     public function soloPrioridad()
     {
-        $solicitudes = Solicitud::with(['tipoSolicitud', 'estado', 'grupo'])
+        $solicitudes = Solicitud::with(['tipoSolicitud', 'estado:id,nombre,descripcion', 'grupo'])
             ->ordenarPor('prioridad')
             ->get();
 
         return view('solicitudes.dashboard', compact('solicitudes'));
     }
 
+
+    public function show(Grupo $grupo, Solicitud $solicitud)
+    {
+        $solicitud->load('documento'); // Carga relación
+
+        // Opcional para debug:
+        // dd($solicitud->documento);
+
+        return view('grupos.solicitudes.show', compact('grupo', 'solicitud'));
+    }
+
+    public function completar(Grupo $grupo, Solicitud $solicitud)
+    {
+        // Carga los estados "Cerrada" y "Respondida"
+        $estados = DB::table('estado_solicitud')
+            ->whereIn('nombre', ['Cerrada', 'Respondida'])
+            ->get()
+            ->keyBy('nombre');
+
+        if ($solicitud->firma_digital) {
+            // firma_digital = 1
+            if ($solicitud->documento) {
+                $solicitud->estado_id = $estados['Cerrada']->id ?? $solicitud->estado_id;
+            } else {
+                $solicitud->estado_id = $estados['Respondida']->id ?? $solicitud->estado_id;
+            }
+        } else {
+            // firma_digital = 0, no importa documento
+            $solicitud->estado_id = $estados['Cerrada']->id ?? $solicitud->estado_id;
+        }
+
+        $solicitud->completada = true;
+        $solicitud->save();
+
+        return redirect()->route('grupos.solicitudes.index', $grupo)
+                        ->with('success', 'La solicitud fue marcada como completada y su estado actualizado.');
+    }
+
+
+    public function revertir(Grupo $grupo, Solicitud $solicitud)
+    {
+        $estadoCalculado = $solicitud->calcularEstadoSegunDiasHabiles();
+
+        if ($estadoCalculado) {
+            $solicitud->estado_id = $estadoCalculado;
+        }
+
+        $solicitud->completada = false;
+        $solicitud->save();
+
+        return redirect()->route('grupos.solicitudes.index', $grupo)
+                        ->with('success', 'La solicitud fue revertida a no completada y su estado recalculado correctamente.');
+    }
 
 
 }

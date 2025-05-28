@@ -85,8 +85,28 @@
     const dataEstado = {!! json_encode($porEstado->values()) !!};
 
     // Paleta personalizada con tonos Tailwind
-    const coloresTipo = ['#60a5fa', '#34d399', '#fbbf24', '#f87171', '#a78bfa', '#38bdf8'];
-    const coloresEstado = ['#4ade80', '#facc15', '#f87171', '#60a5fa'];
+const coloresTipo = [
+  '#60a5fa', // azul claro (tailwind blue-400)
+  '#34d399', // verde menta (tailwind green-400)
+  '#fbbf24', // amarillo dorado (tailwind yellow-400)
+  '#f87171', // rojo suave (tailwind red-400)
+  '#a78bfa', // púrpura lavanda (tailwind purple-400)
+  '#38bdf8', // cian brillante (tailwind cyan-400)
+  '#f97316', // naranja brillante (tailwind orange-500)
+  '#ec4899', // rosa fuerte (tailwind pink-500)
+  '#22d3ee', // azul turquesa (tailwind cyan-500)
+  '#10b981', // verde esmeralda (tailwind emerald-500)
+];
+const coloresEstado = [
+  '#4ade80', // verde claro (tailwind green-400)
+  '#facc15', // amarillo vibrante (tailwind yellow-400)
+  '#f87171', // rojo suave (tailwind red-400)
+  '#60a5fa', // azul claro (tailwind blue-400)
+  '#fb923c', // naranja (tailwind orange-400)
+  '#8b5cf6', // violeta (tailwind purple-500)
+  '#ec4899', // rosa fuerte (tailwind pink-500)
+  '#22c55e', // verde medio (tailwind green-500)
+];
 
     // Gráfico por Tipo
     new Chart(document.getElementById('chartTipo'), {

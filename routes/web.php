@@ -7,17 +7,16 @@ use App\Http\Controllers\SolicitudController;
 use App\Http\Controllers\SolicitudExportController;
 use App\Http\Controllers\UsuarioController;
 use App\Http\Controllers\GrupoController;
+use App\Http\Controllers\DocumentoController;
 
 use App\Http\Middleware\RolMiddleware;
 
 
 Route::get('/', function () {
-    return view('welcome');
-});
+    return view('login');
+})->name('inicio');  // o cualquier nombre que desees
 
-Route::get('/dashboard', function () {
-    return view('dashboard');
-})->middleware(['auth', 'verified'])->name('dashboard');
+
 
 // Perfil - requiere autenticación
 Route::middleware('auth')->group(function () {
@@ -92,6 +91,13 @@ Route::prefix('grupos/{grupo}/solicitudes')->name('grupos.solicitudes.')->middle
     Route::get('/editar/{solicitud}', [SolicitudController::class, 'edit'])->name('edit');
     Route::put('/actualizar/{solicitud}', [SolicitudController::class, 'update'])->name('update');
     Route::delete('/eliminar/{solicitud}', [SolicitudController::class, 'destroy'])->name('destroy');
+
+    Route::patch('/{solicitud}/completar', [SolicitudController::class, 'completar'])->name('completar');
+    Route::patch('/{solicitud}/revertir', [SolicitudController::class, 'revertir'])->name('revertir');
+
+    Route::get('/{solicitud}', [SolicitudController::class, 'show'])->name('show');           // Mostrar detalle (la que quieres)
+    Route::get('/documento/{id}/descargar', [DocumentoController::class, 'descargar'])->name('documento.descargar');
+    Route::get('/documento/{id}/ver', [DocumentoController::class, 'ver'])->name('documento.ver');
 
 
 });

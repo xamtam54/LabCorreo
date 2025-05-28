@@ -28,11 +28,12 @@
                             @php
                                 $estadoNombre = $solicitud->estado->nombre ?? '';
                                 $estadoColor = match($estadoNombre) {
-                                    'Recibida' => 'border-l-8 border-blue-400 bg-blue-50',
-                                    'En Revisión' => 'border-l-8 border-orange-400 bg-orange-50',
-                                    'Por Vencer' => 'border-l-8 border-red-600 bg-red-100',
-                                    'Respondida' => 'border-l-8 border-yellow-400 bg-yellow-50',
-                                    'Cerrada' => 'border-l-8 border-green-600 bg-green-100',
+                                    'Nueva' => 'border-l-8 border-blue-400 bg-blue-100',
+                                    'En Revisión' => 'border-l-8 border-orange-400 bg-orange-100',
+                                    'Por Vencer' => 'border-l-8 border-red-600 bg-red-200',
+                                    'Expirada' => 'border-l-8 border-gray-600 bg-gray-200',
+                                    'Respondida' => 'border-l-8 border-yellow-400 bg-yellow-100',
+                                    'Cerrada' => 'border-l-8 border-green-600 bg-green-200',
                                     default => 'border-l-8 border-gray-300 bg-white',
                                 };
                             @endphp
@@ -42,7 +43,9 @@
                                 <td class="p-4 font-semibold text-gray-900">{{ $solicitud->numero_radicado }}</td>
                                 <td class="p-4 text-gray-800">{{ $solicitud->asunto }}</td>
                                 <td class="p-4 text-gray-700 italic">{{ $solicitud->tipoSolicitud->nombre ?? 'No definido' }}</td>
-                                <td class="p-4 font-semibold text-gray-900">{{ $solicitud->estado->nombre ?? 'Sin estado' }}</td>
+                                <td class="p-4 font-semibold text-gray-900" title="{{ $solicitud->estado->descripcion ?? 'Sin descripción' }}">
+                                    {{ $solicitud->estado->nombre ?? 'Sin estado' }}
+                                </td>
                                 <td class="p-4 text-gray-700">{{ $solicitud->grupo->nombre ?? 'Grupo desconocido' }}</td>
                             </tr>
                         @endforeach

@@ -8,7 +8,7 @@
 
     <div class="text-blue-900 font-semibold text-2xl mb-8 text-center
                 hidden sm:block">
-        Sistema de Correos
+        Sistema Integral de Gestión de Solicitudes
     </div>
 
     <nav class="flex flex-col gap-2 text-gray-800">

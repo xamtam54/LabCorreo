@@ -1,10 +1,12 @@
 <?php
 
 namespace App\Models;
+use Carbon\Carbon;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\DB;
 
 class Solicitud extends Model
 {
@@ -16,6 +18,7 @@ class Solicitud extends Model
         'tipo_solicitud_id',
         'remitente',
         'asunto',
+        'contenido',
         'medio_recepcion_id',
         'fecha_ingreso',
         'documento_adjunto_id',
@@ -23,8 +26,10 @@ class Solicitud extends Model
         'usuario_id',
         'estado_id',
         'firma_digital',
+        'completada',
         'grupo_id',
     ];
+
 
     public function scopeFiltrarTipo(Builder $query, $tipo)
     {
@@ -79,6 +84,40 @@ class Solicitud extends Model
         return $query->latest(); // por defecto
     }
 
+
+    public function calcularEstadoSegunDiasHabiles(): ?int
+{
+    $now = Carbon::now();
+    $created = $this->created_at;
+
+    // Contar días hábiles
+    $businessDaysPassed = 0;
+    $date = $created->copy();
+
+    while ($date->lessThanOrEqualTo($now)) {
+        if (!in_array($date->dayOfWeek, [Carbon::SATURDAY, Carbon::SUNDAY])) {
+            $businessDaysPassed++;
+        }
+        $date->addDay();
+    }
+
+    // Cargar estados posibles
+    $estados = DB::table('estado_solicitud')
+        ->whereIn('nombre', ['Nueva', 'En Revisión', 'Por Vencer', 'Expirada'])
+        ->get()
+        ->keyBy('nombre');
+
+    // Seleccionar estado apropiado
+    if ($businessDaysPassed > 15) {
+        return $estados['Expirada']->id ?? null;
+    } elseif ($businessDaysPassed > 10) {
+        return $estados['Por Vencer']->id ?? null;
+    } elseif ($businessDaysPassed > 5) {
+        return $estados['En Revisión']->id ?? null;
+    } else {
+        return $estados['Nueva']->id ?? null;
+    }
+}
     public function tipoSolicitud()
     {
         return $this->belongsTo(TipoSolicitud::class);
@@ -89,7 +128,7 @@ class Solicitud extends Model
         return $this->belongsTo(MedioRecepcion::class);
     }
 
-    public function documentoAdjunto()
+    public function documento()
     {
         return $this->belongsTo(Documento::class, 'documento_adjunto_id');
     }

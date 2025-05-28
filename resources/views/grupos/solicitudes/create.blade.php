@@ -12,34 +12,33 @@
                     class="w-full p-3 border border-gray-300 rounded-md bg-gray-100 text-gray-600" readonly>
             </div>
 
-            {{-- Fecha de Ingreso --}}
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Fecha de Ingreso</label>
-                <input type="date" name="fecha_ingreso"
-                    max="{{ now()->format('Y-m-d') }}"
-                    value="{{ now()->format('Y-m-d') }}"
-                    class="w-full p-3 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500">
-            </div>
+{{-- Fecha de Ingreso --}}
+<div>
+    <label class="block text-sm font-medium text-gray-700 mb-1">Fecha de Ingreso</label>
+    <input id="fecha_ingreso" type="date" name="fecha_ingreso"
+        max="{{ now()->format('Y-m-d') }}"
+        value="{{ now()->format('Y-m-d') }}"
+        class="w-full p-3 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500">
+</div>
 
+{{-- Fecha de Vencimiento --}}
+<div>
+    <label class="block text-sm font-medium text-gray-700 mb-1">Fecha de Vencimiento</label>
+    <input id="fecha_vencimiento" type="date" name="fecha_vencimiento"
+        value="{{ $fechaVencimiento ?? now()->format('Y-m-d') }}"
+        class="w-full p-3 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500">
+</div>
 
-            {{-- Fecha de Vencimiento --}}
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Fecha de Vencimiento</label>
-                <input type="date" name="fecha_vencimiento" value="{{ now()->addDays(15)->format('Y-m-d') }}"
-                    class="w-full p-3 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500">
-            </div>
 
             {{-- Estado --}}
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Estado</label>
-                <select name="estado_id" class="w-full p-3 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500">
-                    @foreach(App\Models\EstadoSolicitud::all() as $estado)
-                        <option value="{{ $estado->id }}" {{ $estado->nombre === 'Pendiente' ? 'selected' : '' }}>
-                            {{ $estado->nombre }}
-                        </option>
-                    @endforeach
-                </select>
+                <input type="text" value="Nueva" class="w-full p-3 border border-gray-300 rounded-md bg-gray-100 text-gray-500" disabled>
+
+                {{-- Campo oculto para enviar el estado_id de "Nueva" --}}
+                <input type="hidden" name="estado_id" value="{{ App\Models\EstadoSolicitud::where('nombre', 'Nueva')->first()->id }}">
             </div>
+
 
             {{-- Tipo de Solicitud --}}
             <div>
@@ -68,6 +67,15 @@
                 <div class="text-xs text-gray-500 text-right" x-text="asunto.length + ' / 255'"></div>
             </div>
 
+            {{-- Contenido --}}
+            <div x-data="{ contenido: '{{ old('contenido', isset($solicitud) ? $solicitud->contenido : '') }}' }" class="mt-4">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Contenido</label>
+                <textarea name="contenido" x-model="contenido" maxlength="3000"
+                    rows="6"
+                    class="w-full p-3 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 text-sm resize-y"
+                    placeholder="Escribe el contenido detallado de la solicitud..."></textarea>
+                <div class="text-xs text-gray-500 text-right mt-1" x-text="contenido.length + ' / 3000'"></div>
+            </div>
 
             {{-- Medio de Recepción --}}
             <div>
@@ -88,7 +96,7 @@
                         value="1"
                         class="form-checkbox"
                         {{ old('firma_digital') ? 'checked' : '' }}>
-                    <span class="ml-2">¿Requiere Firma Digital?</span>
+                    <span class="ml-2">¿Requiere documento adjunto para completarlo?</span>
                 </label>
             </div>
 
@@ -101,3 +109,36 @@
         </form>
     </div>
 </x-app-layout>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const fechaIngresoInput = document.getElementById('fecha_ingreso');
+    const fechaVencimientoInput = document.getElementById('fecha_vencimiento');
+
+    function addBusinessDays(startDate, daysToAdd) {
+        let date = new Date(startDate);
+        let addedDays = 0;
+
+        while (addedDays < daysToAdd) {
+            date.setDate(date.getDate() + 1);
+            let dayOfWeek = date.getDay(); // 0=Domingo, 6=Sábado
+            if (dayOfWeek !== 0 && dayOfWeek !== 6) { // no sábado ni domingo
+                addedDays++;
+            }
+        }
+
+        // Formatear fecha a YYYY-MM-DD para input date
+        const year = date.getFullYear();
+        const month = ('0' + (date.getMonth() + 1)).slice(-2);
+        const day = ('0' + date.getDate()).slice(-2);
+        return `${year}-${month}-${day}`;
+    }
+
+    fechaIngresoInput.addEventListener('change', function() {
+        const ingresoValue = fechaIngresoInput.value;
+        if (ingresoValue) {
+            const vencimiento = addBusinessDays(ingresoValue, 16);
+            fechaVencimientoInput.value = vencimiento;
+        }
+    });
+});
+</script>

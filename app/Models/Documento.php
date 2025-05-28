@@ -8,19 +8,17 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class Documento extends Model
 {
     use SoftDeletes;
+    public $timestamps = false;
     protected $table = 'documento';
 
     protected $fillable = [
-        'editorId', 'nombreArchivo', 'tipoDocumentoId', 'tamanoMB', 'ruta'
+        'editor_id', 'nombre_archivo', 'tamano_mb', 'ruta'
     ];
 
     public function editor()
     {
-        return $this->belongsTo(Usuario::class, 'editorId');
+        return $this->belongsTo(Usuario::class, 'editor_id');
     }
 
-    public function tipoDocumento()
-    {
-        return $this->belongsTo(TipoDocumento::class, 'tipoDocumentoId');
-    }
+
 }

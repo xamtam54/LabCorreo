@@ -8,32 +8,46 @@ use Illuminate\Support\Facades\DB;
 
 class CatalogosSeeder extends Seeder
 {
-    public function run()
+public function run()
     {
         // Tipos de solicitud: PQRS
-        DB::table('tipo_solicitud')->insert([
-            ['nombre' => 'Petición'],
-            ['nombre' => 'Queja'],
-            ['nombre' => 'Reclamo'],
-            ['nombre' => 'Sugerencia']
-        ]);
+        $tipos = [
+            'Petición', 'Queja', 'Reclamo', 'Sugerencia',
+            'Felicitación', 'Denuncia', 'Solicitud de Información'
+        ];
+
+        foreach ($tipos as $nombre) {
+            DB::table('tipo_solicitud')->updateOrInsert(
+                ['nombre' => $nombre],
+                ['nombre' => $nombre]
+            );
+        }
 
         // Medios de recepción
-        DB::table('medio_recepcion')->insert([
-            ['nombre' => 'Correo'],
-            ['nombre' => 'Web'],
-            ['nombre' => 'Teléfono'],
-            ['nombre' => 'Presencial']
-        ]);
+        $medios = ['Correo', 'Web', 'Teléfono', 'Físico', 'Chat', 'Redes Sociales'];
+
+        foreach ($medios as $nombre) {
+            DB::table('medio_recepcion')->updateOrInsert(
+                ['nombre' => $nombre],
+                ['nombre' => $nombre]
+            );
+        }
 
         // Estados de la solicitud
-        DB::table('estado_solicitud')->insert([
-            ['nombre' => 'Recibida', 'descripcion' => 'La solicitud ha ingresado y aún no ha sido procesada.'],
-            ['nombre' => 'En Revisión', 'descripcion' => 'La solicitud está siendo gestionada; quedan más de 10 días para completarla.'],
-            ['nombre' => 'Por Vencer', 'descripcion' => 'La solicitud está próxima a su vencimiento (quedan 5 días).'],
-            ['nombre' => 'Respondida', 'descripcion' => 'La solicitud fue atendida pero falta adjuntar el documento requerido.'],
-            ['nombre' => 'Cerrada', 'descripcion' => 'La solicitud fue respondida y el documento fue adjuntado de ser necesario.'],
-        ]);
+        $estados = [
+            ['nombre' => 'Nueva', 'descripcion' => 'Solicitud registrada, sin procesar.'],
+            ['nombre' => 'En Revisión', 'descripcion' => 'Solicitud en proceso, quedan más de 10 días.'],
+            ['nombre' => 'Por Vencer', 'descripcion' => 'Quedan pocos días para su vencimiento (5 o menos).'],
+            ['nombre' => 'Respondida', 'descripcion' => 'Respuesta emitida, falta adjuntar documento.'],
+            ['nombre' => 'Cerrada', 'descripcion' => 'Solicitud completada con respuesta y documentos.'],
+            ['nombre' => 'Expirada', 'descripcion' => 'Se venció el plazo sin gestión.'],
+        ];
 
+        foreach ($estados as $estado) {
+            DB::table('estado_solicitud')->updateOrInsert(
+                ['nombre' => $estado['nombre']],
+                ['descripcion' => $estado['descripcion']]
+            );
+        }
     }
 }

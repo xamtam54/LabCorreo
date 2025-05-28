@@ -106,13 +106,15 @@
                         @forelse($solicitudes as $solicitud)
                             @php
                                 $estadoNombre = $solicitud->estado->nombre ?? '';
+                                $estadoDescripcion = $solicitud->estado->descripcion ?? '';
 
                                 $estadoColor = match($estadoNombre) {
-                                    'Recibida' => 'border-l-8 border-blue-400 bg-blue-50',
-                                    'En Revisión' => 'border-l-8 border-orange-400 bg-orange-50',
-                                    'Por Vencer' => 'border-l-8 border-red-600 bg-red-100',
-                                    'Respondida' => 'border-l-8 border-yellow-400 bg-yellow-50',
-                                    'Cerrada' => 'border-l-8 border-green-600 bg-green-100',
+                                    'Nueva' => 'border-l-8 border-blue-400 bg-blue-100',
+                                    'En Revisión' => 'border-l-8 border-orange-400 bg-orange-100',
+                                    'Por Vencer' => 'border-l-8 border-red-600 bg-red-200',
+                                    'Expirada' => 'border-l-8 border-gray-600 bg-gray-200',
+                                    'Respondida' => 'border-l-8 border-yellow-400 bg-yellow-100',
+                                    'Cerrada' => 'border-l-8 border-green-600 bg-green-200',
                                     default => 'border-l-8 border-gray-300 bg-white',
                                 };
                             @endphp
@@ -121,14 +123,51 @@
                                 <td class="p-4 font-semibold text-gray-900">{{ $solicitud->numero_radicado }}</td>
                                 <td class="p-4 text-gray-800">{{ $solicitud->asunto }}</td>
                                 <td class="p-4 text-gray-700 italic">{{ $solicitud->tipoSolicitud->nombre ?? 'No definido' }}</td>
-                                <td class="p-4 font-semibold text-gray-900">{{ $solicitud->estado->nombre ?? 'Sin estado' }}</td>
+                                <td class="p-4 font-semibold text-gray-900" title="{{ $estadoDescripcion }}">
+                                    {{ $estadoNombre ?? 'Sin estado' }}
+                                </td>
                                 <td class="p-4 space-x-3">
                                     <x-button-edit :href="route('grupos.solicitudes.edit', [$grupo, $solicitud])" />
+
+                                    <!-- Botón Ver -->
+                                    <x-eye-button
+                                        text="Ver"
+                                        size="sm"
+                                        onclick="window.location='{{ route('grupos.solicitudes.show', [$grupo, $solicitud]) }}'"
+                                    />
+
                                     <form action="{{ route('grupos.solicitudes.destroy', [$grupo, $solicitud]) }}" method="POST" class="inline">
                                         @csrf
                                         @method('DELETE')
                                         <x-button-delete onclick="return confirm('¿Estás seguro de que deseas eliminar esta solicitud?')" />
                                     </form>
+
+                                   @if (!$solicitud->completada)
+                                        <form action="{{ route('grupos.solicitudes.completar', [$grupo, $solicitud]) }}" method="POST" class="inline">
+                                            @csrf
+                                            @method('PATCH')
+                                            <button
+                                                type="submit"
+                                                class="inline-flex items-center px-3 py-1.5 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                                                onclick="return confirm('¿Estás seguro de marcar esta solicitud como completada?')"
+                                            >
+                                                Completar
+                                            </button>
+                                        </form>
+                                    @else
+                                        <form action="{{ route('grupos.solicitudes.revertir', [$grupo, $solicitud]) }}" method="POST" class="inline">
+                                            @csrf
+                                            @method('PATCH')
+                                            <button
+                                                type="submit"
+                                                class="inline-flex items-center px-3 py-1.5 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                                                onclick="return confirm('¿Estás seguro de revertir la marca de completada?')"
+                                            >
+                                                Revertir
+                                            </button>
+                                        </form>
+                                    @endif
+
                                 </td>
                             </tr>
                         @empty

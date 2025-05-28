@@ -9,38 +9,59 @@ use Carbon\Carbon;
 class ActualizarEstadosSolicitudes extends Command
 {
     protected $signature = 'solicitudes:actualizar-estados';
-    protected $description = 'Actualizar estados de solicitudes según reglas de tiempo';
+    protected $description = 'Actualizar estados de solicitudes según días hábiles transcurridos';
 
     public function handle()
     {
         $now = Carbon::now();
 
-        // Obtiene solicitudes no cerradas
+        // Solicitudes que NO están ni en Respondida ni en Cerrada
         $solicitudes = Solicitud::whereHas('estado', function($q) {
-            $q->where('nombre', '!=', 'Cerrada');
+            $q->whereNotIn('nombre', ['Respondida', 'Cerrada']);
         })->get();
 
         foreach ($solicitudes as $solicitud) {
             $created = $solicitud->created_at;
-            $daysPassed = $created->diffInDays($now);
+            $businessDaysPassed = $this->countBusinessDays($created, $now);
 
-            // Ejemplo de reglas
-            if ($daysPassed > 25 && $solicitud->estado->nombre != 'Por Vencer') {
-                $solicitud->estado_id = 3; // Por Vencer (ajusta el id)
+            // Reglas según días hábiles
+            if ($businessDaysPassed > 15 && $solicitud->estado->nombre !== 'Expirada') {
+                $solicitud->estado_id = 6; // Expirada
+                $solicitud->save();
+                $this->info("Solicitud {$solicitud->id} actualizada a Expirada");
+            } elseif ($businessDaysPassed > 10 && $solicitud->estado->nombre !== 'Por Vencer') {
+                $solicitud->estado_id = 3; // Por Vencer
                 $solicitud->save();
                 $this->info("Solicitud {$solicitud->id} actualizada a Por Vencer");
-            } elseif ($daysPassed > 10 && $solicitud->estado->nombre != 'En Revisión') {
+            } elseif ($businessDaysPassed > 5 && $solicitud->estado->nombre !== 'En Revisión') {
                 $solicitud->estado_id = 2; // En Revisión
                 $solicitud->save();
                 $this->info("Solicitud {$solicitud->id} actualizada a En Revisión");
-            } elseif ($daysPassed <= 10 && $solicitud->estado->nombre != 'Recibida') {
-                $solicitud->estado_id = 1; // Recibida
+            } elseif ($businessDaysPassed <= 5 && $solicitud->estado->nombre !== 'Nueva') {
+                $solicitud->estado_id = 1; // Nueva
                 $solicitud->save();
-                $this->info("Solicitud {$solicitud->id} actualizada a Recibida");
+                $this->info("Solicitud {$solicitud->id} actualizada a Nueva");
             }
         }
 
         $this->info('Actualización de estados completada.');
     }
-}
 
+    /**
+     * Cuenta los días hábiles entre dos fechas (excluye sábados y domingos)
+     */
+    protected function countBusinessDays(Carbon $startDate, Carbon $endDate): int
+    {
+        $days = 0;
+        $date = $startDate->copy();
+
+        while ($date->lessThanOrEqualTo($endDate)) {
+            if (!in_array($date->dayOfWeek, [Carbon::SATURDAY, Carbon::SUNDAY])) {
+                $days++;
+            }
+            $date->addDay();
+        }
+
+        return $days;
+    }
+}
