@@ -3,11 +3,55 @@
 namespace App\Services;
 
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Cache;
+//use Illuminate\Support\Facades\Log;
+
 use Carbon\Carbon;
 
 class BusinessDaysCalculator
 {
-    // Sumar días hábiles
+    protected array $holidays = [];
+
+    public function __construct()
+    {
+        $this->loadHolidays();
+    }
+
+    protected function loadHolidays(): void
+    {
+        $years = [
+            now()->year - 1,
+            now()->year,
+            now()->year + 1,
+            now()->year + 2,
+            now()->year + 3,
+        ];
+
+        foreach ($years as $year) {
+            // Guarda en caché 2 años
+            $this->holidays[$year] = Cache::remember(
+                "holidays_CO_$year",
+                now()->addYear(2), // duración del caché
+                function () use ($year) {
+                    //Log::info("Consultando API para festivos del año $year");  //  log
+                    $response = Http::get("https://api.generadordni.es/v2/holidays/holidays", [
+                        'country' => 'CO',
+                        'year' => $year,
+                    ]);
+
+                    if ($response->successful()) {
+                        return collect($response->json())
+                            ->pluck('date')
+                            ->map(fn($date) => Carbon::parse($date)->format('Y-m-d'))
+                            ->toArray();
+                    }
+
+                    return []; // En caso de error, evita crash
+                }
+            );
+        }
+    }
+
     public function addBusinessDays(Carbon $startDate, int $daysToAdd): Carbon
     {
         $date = $startDate->copy();
@@ -24,9 +68,27 @@ class BusinessDaysCalculator
         return $date;
     }
 
-    // Verifica si un día es hábil (solo lunes a viernes)
     protected function isBusinessDay(Carbon $date): bool
     {
-        return !in_array($date->dayOfWeek, [Carbon::SATURDAY, Carbon::SUNDAY]);
+        $year = $date->year;
+
+        return $date->isWeekday() && // Lunes a viernes
+               !in_array($date->format('Y-m-d'), $this->holidays[$year] ?? []);
     }
+
+    public function countBusinessDays(Carbon $startDate, Carbon $endDate): int
+    {
+        $days = 0;
+        $date = $startDate->copy();
+
+        while ($date->lessThanOrEqualTo($endDate)) {
+            if ($this->isBusinessDay($date)) {
+                $days++;
+            }
+            $date->addDay();
+        }
+
+        return $days;
+    }
+
 }

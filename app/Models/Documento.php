@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Storage;
 
 class Documento extends Model
 {
@@ -20,5 +21,17 @@ class Documento extends Model
         return $this->belongsTo(Usuario::class, 'editor_id');
     }
 
+    public function eliminarArchivo()
+    {
+        if (empty($this->ruta)) {
+            return;
+        }
 
+        if (Storage::exists($this->ruta)) {
+            Storage::delete($this->ruta);
+        } else {
+        }
+
+        $this->delete();
+    }
 }

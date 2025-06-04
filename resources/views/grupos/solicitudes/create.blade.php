@@ -12,33 +12,29 @@
                     class="w-full p-3 border border-gray-300 rounded-md bg-gray-100 text-gray-600" readonly>
             </div>
 
-{{-- Fecha de Ingreso --}}
-<div>
-    <label class="block text-sm font-medium text-gray-700 mb-1">Fecha de Ingreso</label>
-    <input id="fecha_ingreso" type="date" name="fecha_ingreso"
-        max="{{ now()->format('Y-m-d') }}"
-        value="{{ now()->format('Y-m-d') }}"
-        class="w-full p-3 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500">
-</div>
-
-{{-- Fecha de Vencimiento --}}
-<div>
-    <label class="block text-sm font-medium text-gray-700 mb-1">Fecha de Vencimiento</label>
-    <input id="fecha_vencimiento" type="date" name="fecha_vencimiento"
-        value="{{ $fechaVencimiento ?? now()->format('Y-m-d') }}"
-        class="w-full p-3 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500">
-</div>
-
-
-            {{-- Estado --}}
+            {{-- Fecha de Ingreso --}}
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Estado</label>
-                <input type="text" value="Nueva" class="w-full p-3 border border-gray-300 rounded-md bg-gray-100 text-gray-500" disabled>
-
-                {{-- Campo oculto para enviar el estado_id de "Nueva" --}}
-                <input type="hidden" name="estado_id" value="{{ App\Models\EstadoSolicitud::where('nombre', 'Nueva')->first()->id }}">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Fecha de Ingreso</label>
+                <input id="fecha_ingreso" type="date" name="fecha_ingreso"
+                    max="{{ now()->format('Y-m-d') }}"
+                    value="{{ now()->format('Y-m-d') }}"
+                    class="w-full p-3 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500">
             </div>
 
+            {{-- Fecha de Vencimiento --}}
+            <div class="hidden">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Fecha de Vencimiento</label>
+                <input id="fecha_vencimiento" type="date" name="fecha_vencimiento"
+                    value="{{ $fechaVencimiento ?? now()->format('Y-m-d') }}" readonly
+                    class="w-full p-3 border border-gray-300 rounded-md bg-gray-100 cursor-not-allowed">
+            </div>
+
+            {{-- Estado --}}
+            <div class="hidden">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Estado</label>
+                <input type="text" value="Nueva" class="w-full p-3 border border-gray-300 rounded-md bg-gray-100 text-gray-500" disabled>
+                <input type="hidden" name="estado_id" value="{{ App\Models\EstadoSolicitud::where('nombre', 'Nueva')->first()->id }}">
+            </div>
 
             {{-- Tipo de Solicitud --}}
             <div>
@@ -50,7 +46,7 @@
                 </select>
             </div>
 
-                        {{-- Remitente --}}
+            {{-- Remitente --}}
             <div x-data="{ remitente: '' }">
                 <label class="block text-sm font-medium text-gray-700 mb-1">Remitente</label>
                 <input type="text" name="remitente" x-model="remitente" maxlength="100"
@@ -58,7 +54,7 @@
                 <div class="text-xs text-gray-500 text-right" x-text="remitente.length + ' / 100'"></div>
             </div>
 
-                        {{-- Asunto --}}
+            {{-- Asunto --}}
             <div x-data="{ asunto: '{{ old('asunto', isset($solicitud) ? $solicitud->asunto : '') }}' }">
                 <label class="block text-sm font-medium text-gray-700 mb-1">Asunto</label>
                 <textarea name="asunto" x-model="asunto" maxlength="255"
@@ -109,36 +105,32 @@
         </form>
     </div>
 </x-app-layout>
+
+
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    const fechaIngresoInput = document.getElementById('fecha_ingreso');
-    const fechaVencimientoInput = document.getElementById('fecha_vencimiento');
-
-    function addBusinessDays(startDate, daysToAdd) {
-        let date = new Date(startDate);
-        let addedDays = 0;
-
-        while (addedDays < daysToAdd) {
-            date.setDate(date.getDate() + 1);
-            let dayOfWeek = date.getDay(); // 0=Domingo, 6=Sábado
-            if (dayOfWeek !== 0 && dayOfWeek !== 6) { // no sábado ni domingo
-                addedDays++;
-            }
-        }
-
-        // Formatear fecha a YYYY-MM-DD para input date
-        const year = date.getFullYear();
-        const month = ('0' + (date.getMonth() + 1)).slice(-2);
-        const day = ('0' + date.getDate()).slice(-2);
-        return `${year}-${month}-${day}`;
+    window.addEventListener('DOMContentLoaded', () => {
+    const fechaInput = document.getElementById('fecha_ingreso');
+    if (fechaInput && fechaInput.value) {
+        // Disparar el evento de cambio manualmente
+        fechaInput.dispatchEvent(new Event('change'));
     }
+    });
 
-    fechaIngresoInput.addEventListener('change', function() {
-        const ingresoValue = fechaIngresoInput.value;
-        if (ingresoValue) {
-            const vencimiento = addBusinessDays(ingresoValue, 16);
-            fechaVencimientoInput.value = vencimiento;
+    const apiUrl = "{{ url('api/calcular-fecha') }}";
+
+    document.getElementById('fecha_ingreso').addEventListener('change', async function() {
+        const fechaInicial = this.value;
+        if (!fechaInicial) return;
+
+        try {
+            const response = await fetch(apiUrl + '?fecha=' + fechaInicial);
+            if (!response.ok) throw new Error('Error en la llamada a la API');
+
+            const data = await response.json();
+            document.getElementById('fecha_vencimiento').value = data.fecha_resultado;
+        } catch (error) {
+            console.error(error);
+            alert('No se pudo calcular la fecha de vencimiento.');
         }
     });
-});
 </script>

@@ -13,6 +13,7 @@ use App\Models\Documento;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
+use App\Services\BusinessDaysCalculator;
 
 use Illuminate\Support\Facades\Log;
 
@@ -43,7 +44,7 @@ class SolicitudController extends Controller
         return view('grupos.solicitudes.create', compact('grupo'));
     }
 
-    public function store(Request $request, Grupo $grupo)
+    public function store(Request $request, Grupo $grupo, BusinessDaysCalculator $calculator)
     {
         $data = $request->validate([
             'numero_radicado' => 'required|string|unique:solicitud',
@@ -59,20 +60,25 @@ class SolicitudController extends Controller
             'firma_digital' => 'boolean',
         ]);
 
-
         $data['usuario_id'] = Auth::user()->id;
         $data['grupo_id'] = $grupo->id;
 
-        Solicitud::create($data);
+        // Crear la solicitud
+        $solicitud = Solicitud::create($data);
 
-        return redirect()->route('grupos.solicitudes.index', $grupo)->with('success', 'Solicitud creada con éxito.');
+        // Calcular estado según días hábiles
+        $estadoCalculado = $solicitud->calcularEstadoSegunDiasHabiles($calculator);
+        if ($estadoCalculado) {
+            $solicitud->estado_id = $estadoCalculado;
+            $solicitud->save();
+        }
+
+        return redirect()->route('grupos.solicitudes.index', $grupo)
+                        ->with('success', 'Solicitud creada con éxito.');
     }
 
-    public function update(Request $request, Grupo $grupo, Solicitud $solicitud)
+    public function update(Request $request, Grupo $grupo, Solicitud $solicitud, BusinessDaysCalculator $calculator)
     {
-        Log::info('Usuario autenticado:', ['user' => Auth::user()]);
-
-        // Validar campos base
         $rules = [
             'tipo_solicitud_id' => 'required|exists:tipo_solicitud,id',
             'remitente' => 'required|string|max:255',
@@ -85,28 +91,26 @@ class SolicitudController extends Controller
             'firma_digital' => 'boolean',
         ];
 
-        // Si firma_digital es true, archivo puede ser obligatorio (según lógica)
         if ($request->boolean('firma_digital')) {
             $rules['archivo'] = 'nullable|file|max:10240';
         }
 
         $data = $request->validate($rules);
-        Log::info('Datos validados para actualización:', $data);
-
         $data['usuario_id'] = Auth::user()->id;
 
-        // Manejo del archivo
+        // Cargar relación documento
+        $solicitud->load('documento');
+
         if ($request->boolean('firma_digital')) {
             if ($request->hasFile('archivo')) {
-                // Elimina archivo anterior si existe
-                if ($solicitud->documento_adjunto) {
-                    Storage::delete($solicitud->documento_adjunto->ruta);
-                    $solicitud->documento_adjunto->delete();
+
+                if ($solicitud->documento) {
+                    $solicitud->documento->eliminarArchivo();
+                } else {
+                    Log::info('No hay documento anterior para eliminar.');
                 }
 
-                // Guarda el nuevo archivo
                 $path = $request->file('archivo')->store('documentos');
-                Log::info('Archivo actualizado guardado en:', ['path' => $path]);
 
                 $documento = Documento::create([
                     'editor_id' => Auth::user()->id,
@@ -114,25 +118,32 @@ class SolicitudController extends Controller
                     'tamano_mb' => round($request->file('archivo')->getSize() / 1048576, 2),
                     'ruta' => $path,
                 ]);
-
-                Log::info('Documento actualizado creado:', ['documento' => $documento]);
-
                 $data['documento_adjunto_id'] = $documento->id;
             } else {
-                // Mantener documento actual si no se envía uno nuevo
                 $data['documento_adjunto_id'] = $solicitud->documento_adjunto_id;
             }
         } else {
-            // Si ya no se requiere firma digital, se elimina documento si había
-            if ($solicitud->documento_adjunto) {
-                Storage::delete($solicitud->documento_adjunto->ruta);
-                $solicitud->documento_adjunto->delete();
+            if ($solicitud->documento) {
+                $solicitud->documento->eliminarArchivo();
+            } else {
             }
+
             $data['documento_adjunto_id'] = null;
         }
 
         $solicitud->update($data);
-        Log::info('Solicitud actualizada:', ['solicitud' => $solicitud]);
+
+        // Recalcular estado
+        if ($solicitud->completada) {
+            $solicitud->estado_id = $solicitud->determinarEstadoFinal();
+        } else {
+            $estadoCalculado = $solicitud->calcularEstadoSegunDiasHabiles($calculator);
+            if ($estadoCalculado) {
+                $solicitud->estado_id = $estadoCalculado;
+            }
+        }
+
+        $solicitud->save();
 
         return redirect()->route('grupos.solicitudes.index', $grupo)
                         ->with('success', 'Solicitud actualizada correctamente.');
@@ -199,7 +210,7 @@ class SolicitudController extends Controller
     public function dashboard(Request $request)
     {
         $user = Auth::user();
-        $usuario = $user->usuario; // relación que tienes que definir en User.php
+        $usuario = $user->usuario;
 
         $tipos = TipoSolicitud::all();
         $estados = EstadoSolicitud::all();
@@ -242,37 +253,24 @@ class SolicitudController extends Controller
         return view('grupos.solicitudes.show', compact('grupo', 'solicitud'));
     }
 
+    // definir si la solicitud se completo
     public function completar(Grupo $grupo, Solicitud $solicitud)
     {
-        // Carga los estados "Cerrada" y "Respondida"
-        $estados = DB::table('estado_solicitud')
-            ->whereIn('nombre', ['Cerrada', 'Respondida'])
-            ->get()
-            ->keyBy('nombre');
 
-        if ($solicitud->firma_digital) {
-            // firma_digital = 1
-            if ($solicitud->documento) {
-                $solicitud->estado_id = $estados['Cerrada']->id ?? $solicitud->estado_id;
-            } else {
-                $solicitud->estado_id = $estados['Respondida']->id ?? $solicitud->estado_id;
-            }
-        } else {
-            // firma_digital = 0, no importa documento
-            $solicitud->estado_id = $estados['Cerrada']->id ?? $solicitud->estado_id;
-        }
-
+        $solicitud->estado_id = $solicitud->determinarEstadoFinal();
         $solicitud->completada = true;
         $solicitud->save();
 
-        return redirect()->route('grupos.solicitudes.index', $grupo)
-                        ->with('success', 'La solicitud fue marcada como completada y su estado actualizado.');
+        return redirect()
+            ->route('grupos.solicitudes.index', $grupo)
+            ->with('success', 'La solicitud fue marcada como completada y su estado actualizado.');
     }
 
-
-    public function revertir(Grupo $grupo, Solicitud $solicitud)
+    // revertir el proceso de completado de la solicitud
+    public function revertir(Grupo $grupo, Solicitud $solicitud, BusinessDaysCalculator $calculator)
     {
-        $estadoCalculado = $solicitud->calcularEstadoSegunDiasHabiles();
+        // Recalcula el estado dinámicamente según días hábiles usando el servicio
+        $estadoCalculado = $solicitud->calcularEstadoSegunDiasHabiles($calculator);
 
         if ($estadoCalculado) {
             $solicitud->estado_id = $estadoCalculado;
@@ -281,8 +279,9 @@ class SolicitudController extends Controller
         $solicitud->completada = false;
         $solicitud->save();
 
-        return redirect()->route('grupos.solicitudes.index', $grupo)
-                        ->with('success', 'La solicitud fue revertida a no completada y su estado recalculado correctamente.');
+        return redirect()
+            ->route('grupos.solicitudes.index', $grupo)
+            ->with('success', 'La solicitud fue revertida a no completada y su estado recalculado correctamente.');
     }
 
 

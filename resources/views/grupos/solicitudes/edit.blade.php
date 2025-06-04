@@ -12,11 +12,10 @@
             {{-- Número de Radicado --}}
             <div>
                 <label for="numero_radicado" class="block text-sm font-medium text-gray-700 mb-1">Número de Radicado</label>
-                <input type="text" id="numero_radicado" name="numero_radicado"
-                    value="{{ old('numero_radicado', $solicitud->numero_radicado) }}"
-                    class="w-full p-3 border border-gray-300 rounded-md bg-gray-100 text-gray-600" readonly>
                 <input type="hidden" name="numero_radicado" value="{{ $solicitud->numero_radicado }}">
+                <p class="text-gray-600 text-sm">{{ $solicitud->numero_radicado }}</p>
             </div>
+
 
             {{-- Fecha de Ingreso --}}
             <div>
@@ -32,39 +31,27 @@
             {{-- Fecha de Vencimiento --}}
             <div>
                 <label for="fecha_vencimiento" class="block text-sm font-medium text-gray-700 mb-1">Fecha de Vencimiento</label>
-                <input type="date" id="fecha_vencimiento" name="fecha_vencimiento"
-                    value="{{ old('fecha_vencimiento', $solicitud->fecha_vencimiento ? \Carbon\Carbon::parse($solicitud->fecha_vencimiento)->format('Y-m-d') : '') }}"
-                    class="w-full p-3 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500">
+                <input
+                    type="date"
+                    id="fecha_vencimiento"
+                    name="fecha_vencimiento"
+                    value="{{ old('fecha_vencimiento', isset($fechaVencimiento) ? $fechaVencimiento->format('Y-m-d') : ($solicitud->fecha_vencimiento ? \Carbon\Carbon::parse($solicitud->fecha_vencimiento)->format('Y-m-d') : now()->format('Y-m-d'))) }}"
+                    readonly
+                    class="w-full p-3 border border-gray-300 rounded-md bg-gray-100 cursor-not-allowed"
+                >
                 @error('fecha_vencimiento')
                     <p class="text-red-600 text-sm mt-1">{{ $message }}</p>
                 @enderror
             </div>
 
             {{-- Estado --}}
-            <div>
+            {{-- <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Estado</label>
                 <input type="text" value="Nueva" class="w-full p-3 border border-gray-300 rounded-md bg-gray-100 text-gray-500" disabled>
-
-                {{-- Campo oculto para enviar el estado_id de "Nueva" --}}
                 <input type="hidden" name="estado_id" value="{{ App\Models\EstadoSolicitud::where('nombre', 'Nueva')->first()->id }}">
-            </div>
+            </div>--}}
 
-            {{-- Estado
-
-            <div>
-                <label for="estado_id" class="block text-sm font-medium text-gray-700 mb-1">Estado</label>
-                <select id="estado_id" name="estado_id"
-                    class="w-full p-3 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500" required>
-                    @foreach($estados as $id => $nombre)
-                        <option value="{{ $id }}" {{ old('estado_id', $solicitud->estado_id) == $id ? 'selected' : '' }}>
-                            {{ $nombre }}
-                        </option>
-                    @endforeach
-                </select>
-                @error('estado_id')
-                    <p class="text-red-600 text-sm mt-1">{{ $message }}</p>
-                @enderror
-            </div> --}}
+            <input type="hidden" name="estado_id" value="{{ App\Models\EstadoSolicitud::where('nombre', 'Nueva')->first()->id }}">
 
             {{-- Tipo de Solicitud --}}
             <div>
@@ -150,31 +137,47 @@
             type="file"
             id="archivo"
             name="archivo"
+            x-ref="archivoInput"
+            @change="if ($refs.archivoInput.files[0]?.size > 10485760) { alert('El archivo no puede superar los 10 MB.'); $refs.archivoInput.value = '' }"
             class="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
-        >
+        />
         @error('archivo')
             <p class="text-red-600 text-sm mt-1">{{ $message }}</p>
         @enderror
     </div>
 
     {{-- Mostrar el documento actual siempre que exista --}}
-    @if($solicitud->documento)
-        <div class="bg-white border border-gray-300 rounded-lg p-4 mt-6 shadow-sm hover:shadow-md transition-shadow duration-200 max-w-md">
-            <a href="{{ route('grupos.solicitudes.documento.ver', ['grupo' => $solicitud->grupo_id, 'id' => $solicitud->documento->id]) }}"
-               target="_blank"
-               class="text-indigo-600 hover:text-indigo-900 hover:underline font-semibold truncate block max-w-full">
-                {{ $solicitud->documento->nombre_archivo }}
-            </a>
-            <div class="flex items-center text-gray-500 text-sm mt-1 space-x-3 select-none">
-                <span>{{ number_format(($solicitud->documento->tamano_mb ?? 0), 2) }} MB</span>
-                <a href="{{ route('grupos.solicitudes.documento.descargar', ['grupo' => $solicitud->grupo_id, 'id' => $solicitud->documento->id]) }}"
-                   class="text-green-600 hover:text-green-900 hover:underline font-semibold"
-                   download>Descargar</a>
-            </div>
-        </div>
-    @else
-        <p class="text-gray-500 italic mt-4 text-center">No hay archivo adjunto para esta solicitud.</p>
-    @endif
+            @if($solicitud->documento)
+                <div class="max-w-md bg-white border border-gray-300 rounded-lg p-5 shadow-sm hover:shadow-md transition-shadow duration-200">
+                    <a href="{{ route('grupos.solicitudes.documento.ver', ['grupo' => $solicitud->grupo_id, 'id' => $solicitud->documento->id]) }}"
+                       target="_blank"
+                       class="text-indigo-600 hover:text-indigo-900 hover:underline font-semibold">
+                        {{ $solicitud->documento->nombre_archivo }}
+                    </a>
+                    <span class="text-gray-400 text-sm mx-2 select-none">•</span>
+                    <small class="text-gray-500 text-sm">{{ number_format(($solicitud->documento->tamano_mb ?? 0), 2) }} MB</small>
+                    <span class="text-gray-400 text-sm mx-2 select-none">•</span>
+                    <div class="flex items-center justify-between mt-2">
+                        <a href="{{ route('grupos.solicitudes.documento.descargar', ['grupo' => $solicitud->grupo_id, 'id' => $solicitud->documento->id]) }}"
+                        class="text-green-600 hover:text-green-900 hover:underline font-semibold"
+                        download>
+                            Descargar
+                        </a>
+
+                        <button type="button"
+                            class="text-red-600 hover:text-red-800 hover:underline font-semibold ml-4"
+                            onclick="eliminarDocumento({{ $solicitud->grupo_id }}, {{ $solicitud->documento->id }})">
+                            Eliminar
+                        </button>
+                    </div>
+
+                </div>
+            @else
+                <p class="text-gray-500 italic">No hay archivo adjunto para esta solicitud.</p>
+            @endif
+
+
+
 </div>
 
             {{-- Botón de envío --}}
@@ -185,3 +188,60 @@
         </form>
     </div>
 </x-app-layout>
+
+<script>
+function eliminarDocumento(grupoId, documentoId) {
+    if (confirm('¿Estás seguro de que deseas eliminar este documento?')) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        // Usamos Blade para generar la URL base correctamente
+        form.action = @json(route('grupos.solicitudes.documento.eliminar', ['grupo' => '__GRUPO__', 'id' => '__ID__']))
+            .replace('__GRUPO__', grupoId)
+            .replace('__ID__', documentoId);
+
+        const token = document.createElement('input');
+        token.type = 'hidden';
+        token.name = '_token';
+        token.value = '{{ csrf_token() }}';
+
+        const method = document.createElement('input');
+        method.type = 'hidden';
+        method.name = '_method';
+        method.value = 'DELETE';
+
+        form.appendChild(token);
+        form.appendChild(method);
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+</script>
+
+
+<script>
+    window.addEventListener('DOMContentLoaded', () => {
+    const fechaInput = document.getElementById('fecha_ingreso');
+    if (fechaInput && fechaInput.value) {
+        // Disparar el evento de cambio manualmente
+        fechaInput.dispatchEvent(new Event('change'));
+    }
+    });
+
+    const apiUrl = "{{ url('api/calcular-fecha') }}";
+
+    document.getElementById('fecha_ingreso').addEventListener('change', async function() {
+        const fechaInicial = this.value;
+        if (!fechaInicial) return;
+
+        try {
+            const response = await fetch(apiUrl + '?fecha=' + fechaInicial);
+            if (!response.ok) throw new Error('Error en la llamada a la API');
+
+            const data = await response.json();
+            document.getElementById('fecha_vencimiento').value = data.fecha_resultado;
+        } catch (error) {
+            console.error(error);
+            alert('No se pudo calcular la fecha de vencimiento.');
+        }
+    });
+</script>

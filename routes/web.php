@@ -14,7 +14,7 @@ use App\Http\Middleware\RolMiddleware;
 
 Route::get('/', function () {
     return view('login');
-})->name('inicio');  // o cualquier nombre que desees
+})->name('inicio');
 
 
 
@@ -85,6 +85,11 @@ Route::post('grupos/{grupo}/denigrar/{usuario}', [GrupoController::class, 'denig
 
 // Rutas para solicitudes dentro de grupos (auth + verified)
 Route::prefix('grupos/{grupo}/solicitudes')->name('grupos.solicitudes.')->middleware(['auth', 'verified'])->group(function () {
+
+    Route::get('/documento/{documento}/descargar', [DocumentoController::class, 'descargar'])->name('documento.descargar');
+    Route::get('/documento/{documento}/ver', [DocumentoController::class, 'ver'])->name('documento.ver');
+    Route::delete('/documento/{documento}/eliminar', [DocumentoController::class, 'eliminar'])->name('documento.eliminar');
+
     Route::get('/', [SolicitudController::class, 'index'])->name('index');
     Route::get('/crear', [SolicitudController::class, 'create'])->name('create');
     Route::post('/guardar', [SolicitudController::class, 'store'])->name('store');
@@ -96,8 +101,6 @@ Route::prefix('grupos/{grupo}/solicitudes')->name('grupos.solicitudes.')->middle
     Route::patch('/{solicitud}/revertir', [SolicitudController::class, 'revertir'])->name('revertir');
 
     Route::get('/{solicitud}', [SolicitudController::class, 'show'])->name('show');           // Mostrar detalle (la que quieres)
-    Route::get('/documento/{id}/descargar', [DocumentoController::class, 'descargar'])->name('documento.descargar');
-    Route::get('/documento/{id}/ver', [DocumentoController::class, 'ver'])->name('documento.ver');
 
 
 });

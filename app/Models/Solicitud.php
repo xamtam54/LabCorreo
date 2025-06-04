@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
+use App\Services\BusinessDaysCalculator;
 
 class Solicitud extends Model
 {
@@ -52,7 +53,7 @@ class Solicitud extends Model
         if (!empty($fecha)) {
             $inicio = \Carbon\Carbon::parse($fecha)->startOfDay();
             $fin = \Carbon\Carbon::parse($fecha)->endOfDay();
-            $query->whereBetween('created_at', [$inicio, $fin]);
+            $query->whereBetween('fecha_ingreso', [$inicio, $fin]);
         }
     }
 
@@ -85,39 +86,27 @@ class Solicitud extends Model
     }
 
 
-    public function calcularEstadoSegunDiasHabiles(): ?int
-{
-    $now = Carbon::now();
-    $created = $this->created_at;
+    public function calcularEstadoSegunDiasHabiles(BusinessDaysCalculator $calculator): ?int
+    {
+        $now = Carbon::now();
+        $created = Carbon::parse($this->fecha_ingreso ?? $this->created_at);
 
-    // Contar días hábiles
-    $businessDaysPassed = 0;
-    $date = $created->copy();
+        $businessDaysPassed = $calculator->countBusinessDays($created, $now);
 
-    while ($date->lessThanOrEqualTo($now)) {
-        if (!in_array($date->dayOfWeek, [Carbon::SATURDAY, Carbon::SUNDAY])) {
-            $businessDaysPassed++;
-        }
-        $date->addDay();
+        // Cargar estados posibles
+        $estados = DB::table('estado_solicitud')
+            ->whereIn('nombre', ['Nueva', 'En Revisión', 'Por Vencer', 'Expirada'])
+            ->get()
+            ->keyBy('nombre');
+
+        return match (true) {
+            $businessDaysPassed > 15 => $estados['Expirada']->id ?? null,
+            $businessDaysPassed > 10 => $estados['Por Vencer']->id ?? null,
+            $businessDaysPassed > 5  => $estados['En Revisión']->id ?? null,
+            default                 => $estados['Nueva']->id ?? null,
+        };
     }
 
-    // Cargar estados posibles
-    $estados = DB::table('estado_solicitud')
-        ->whereIn('nombre', ['Nueva', 'En Revisión', 'Por Vencer', 'Expirada'])
-        ->get()
-        ->keyBy('nombre');
-
-    // Seleccionar estado apropiado
-    if ($businessDaysPassed > 15) {
-        return $estados['Expirada']->id ?? null;
-    } elseif ($businessDaysPassed > 10) {
-        return $estados['Por Vencer']->id ?? null;
-    } elseif ($businessDaysPassed > 5) {
-        return $estados['En Revisión']->id ?? null;
-    } else {
-        return $estados['Nueva']->id ?? null;
-    }
-}
     public function tipoSolicitud()
     {
         return $this->belongsTo(TipoSolicitud::class);
@@ -143,10 +132,11 @@ class Solicitud extends Model
         return $this->belongsTo(EstadoSolicitud::class, 'estado_id');
     }
 
+    /*
     public function semaforo()
     {
         return $this->hasOne(Semaforo::class);
-    }
+    }*/
 
     public function reporte()
     {
@@ -156,4 +146,23 @@ class Solicitud extends Model
     {
         return $this->belongsTo(Grupo::class);
     }
+
+    public function determinarEstadoFinal()
+    {
+        $estados = DB::table('estado_solicitud')
+            ->whereIn('nombre', ['Cerrada', 'Respondida'])
+            ->get()
+            ->keyBy('nombre');
+
+        if ($this->firma_digital) {
+            if ($this->documento) {
+                return $estados['Cerrada']->id ?? $this->estado_id;
+            } else {
+                return $estados['Respondida']->id ?? $this->estado_id;
+            }
+        }
+
+        return $estados['Cerrada']->id ?? $this->estado_id;
+    }
+
 }
