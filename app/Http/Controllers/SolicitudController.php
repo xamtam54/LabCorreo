@@ -235,12 +235,24 @@ class SolicitudController extends Controller
 
     public function soloPrioridad()
     {
-        $solicitudes = Solicitud::with(['tipoSolicitud', 'estado:id,nombre,descripcion', 'grupo'])
-            ->ordenarPor('prioridad')
-            ->get();
+        $user = Auth::user();
+        $usuario = $user->usuario;
+
+        $grupoIds = $usuario ? $usuario->grupos->pluck('id') : collect([]);
+        $tieneGrupos = $grupoIds->isNotEmpty();
+
+        if (!$tieneGrupos) {
+            $solicitudes = collect(); // vacío si no hay grupos
+        } else {
+            $solicitudes = Solicitud::with(['tipoSolicitud', 'estado:id,nombre,descripcion', 'grupo'])
+                ->whereIn('grupo_id', $grupoIds)
+                ->ordenarPor('prioridad')
+                ->get();
+        }
 
         return view('solicitudes.dashboard', compact('solicitudes'));
     }
+
 
 
     public function show(Grupo $grupo, Solicitud $solicitud)

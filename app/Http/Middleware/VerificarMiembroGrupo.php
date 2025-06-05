@@ -12,9 +12,24 @@ class VerificarMiembroGrupo
     {
         $grupo = $request->route('grupo');
         $usuario = Auth::user();
+        $usuarioApp = $usuario?->usuario;
 
-        if (!$usuario || !$grupo || !$usuario->grupos->contains('id', $grupo->id)) {
+        if (!$usuarioApp || !$grupo) {
             abort(403, 'No tienes acceso a este grupo.');
+        }
+
+        // Verificar si pertenece al grupo
+        $relacion = $usuarioApp->grupos()
+            ->where('grupos.id', $grupo->id)
+            ->first();
+
+        if (!$relacion) {
+            abort(403, 'No perteneces a este grupo.');
+        }
+
+        // Verificar si está bloqueado en el grupo
+        if ($relacion->pivot->bloqueado) {
+            abort(403, 'Has sido bloqueado en este grupo.');
         }
 
         return $next($request);
