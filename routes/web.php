@@ -8,15 +8,18 @@ use App\Http\Controllers\SolicitudExportController;
 use App\Http\Controllers\UsuarioController;
 use App\Http\Controllers\GrupoController;
 use App\Http\Controllers\DocumentoController;
+use App\Http\Controllers\HomeController;
 
 use App\Http\Middleware\RolMiddleware;
 use App\Http\Middleware\VerificarMiembroGrupo;
 use App\Http\Middleware\AutorizarAdministradorGrupo;
-
+/*
 Route::get('/', function () {
     return view('login');
 })->name('inicio');
+*/
 
+Route::match(['get', 'post'], '/', [HomeController::class, 'index']);
 
 
 // ============================

@@ -1,53 +1,43 @@
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="dark">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Laravel</title>
+    <title>SIGES - Laravel</title>
 
-    <!-- Fonts -->
-    <link rel="preconnect" href="https://fonts.bunny.net" />
-    <link href="https://fonts.bunny.net/css?family=instrument-sans:400,500,600" rel="stylesheet" />
-
-    <style>
-        /* Contenedor para posicionar el login */
-        .login-container {
-            position: fixed;
-            top: 1rem;
-            right: 1rem;
-            z-index: 1000;
-        }
-
-        .login-link {
-            font-family: 'instrument-sans', sans-serif;
-            font-weight: 500;
-            text-decoration: none;
-            color: #1a202c; /* color gris oscuro */
-            padding: 0.5rem 1rem;
-            border: 1px solid transparent;
-            border-radius: 0.375rem;
-            transition: all 0.3s ease;
-        }
-
-        .login-link:hover {
-            background-color: #4c51bf; /* morado */
-            color: white;
-            border-color: #4c51bf;
-        }
-    </style>
+    @vite(['resources/css/app.css', 'resources/js/app.js']) {{-- Asegúrate de tener esto en tu layout --}}
 </head>
-<body>
+<body class="bg-gray-900 text-white min-h-screen flex flex-col relative font-sans">
+
+    {{-- Botón de Login / Dashboard arriba a la derecha --}}
     @if (Route::has('login'))
-        <div class="login-container">
+        <div class="absolute top-4 right-4 z-10">
             @auth
-                <a href="{{ url('/dashboard') }}" class="login-link">Dashboard</a>
+                <a href="{{ url('/solicitudes/overview') }}"
+                   class="px-4 py-2 rounded-md bg-indigo-600 hover:bg-indigo-700 text-white font-semibold shadow-md transition">
+                    Dashboard
+                </a>
             @else
-                <a href="{{ route('login') }}" class="login-link">Login</a>
+                <a href="{{ route('login') }}"
+                   class="px-4 py-2 rounded-md bg-indigo-600 hover:bg-indigo-700 text-white font-semibold shadow-md transition">
+                    Login
+                </a>
             @endauth
         </div>
     @endif
 
-    <!-- Aquí puedes poner el contenido principal de la página -->
+    {{-- Contenido central --}}
+    <main class="flex-1 flex items-center justify-center text-center px-4">
+        <div>
+            <h1 class="text-6xl md:text-7xl font-bold text-white mb-4">SIGES</h1>
+            <p class="text-lg md:text-xl text-gray-400 font-light">Sistema Integral de Gestión de Solicitudes</p>
+        </div>
+    </main>
+
+    {{-- Footer opcional --}}
+    <footer class="text-center py-4 text-sm text-gray-500">
+        © {{ date('Y') }} - Desarrollado con Laravel
+    </footer>
 
 </body>
 </html>
