@@ -30,11 +30,13 @@
         </section>
 
         <section>
-            <h3 class="text-2xl font-semibold text-gray-900 mb-5 border-b border-gray-200 pb-3">Documento Comprobatorio Adjunto</h3>
+            <h3 class="text-2xl font-semibold text-gray-900 mb-5 border-b border-gray-200 pb-3">
+                Documento Comprobatorio Adjunto
+            </h3>
 
             @if($solicitud->documento)
                 <div class="max-w-md bg-white border border-gray-300 rounded-lg p-5 shadow-sm hover:shadow-md transition-shadow duration-200">
-                    <a href="{{ route('grupos.solicitudes.documento.ver', ['grupo' => $solicitud->grupo_id, 'id' => $solicitud->documento->id]) }}"
+                    <a href="{{ route('grupos.solicitudes.documento.ver', ['grupo' => $solicitud->grupo_id, 'documento' => $solicitud->documento->id]) }}"
                        target="_blank"
                        class="text-indigo-600 hover:text-indigo-900 hover:underline font-semibold">
                         {{ $solicitud->documento->nombre_archivo }}
@@ -42,7 +44,7 @@
                     <span class="text-gray-400 text-sm mx-2 select-none">•</span>
                     <small class="text-gray-500 text-sm">{{ number_format(($solicitud->documento->tamano_mb ?? 0), 2) }} MB</small>
                     <span class="text-gray-400 text-sm mx-2 select-none">•</span>
-                    <a href="{{ route('grupos.solicitudes.documento.descargar', ['grupo' => $solicitud->grupo_id, 'id' => $solicitud->documento->id]) }}"
+                    <a href="{{ route('grupos.solicitudes.documento.descargar', ['grupo' => $solicitud->grupo_id, 'documento' => $solicitud->documento->id]) }}"
                        class="text-green-600 hover:text-green-900 hover:underline ml-3 font-semibold"
                        download>Descargar</a>
                 </div>

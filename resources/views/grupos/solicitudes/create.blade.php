@@ -2,7 +2,7 @@
     <div class="p-8 bg-white rounded-2xl shadow-md max-w-3xl mx-auto mt-8">
         <h2 class="text-3xl font-bold text-gray-800 mb-8">Nueva Solicitud</h2>
 
-        <form action="{{ route('grupos.solicitudes.store', $grupo) }}" method="POST" class="space-y-6">
+        <form action="{{ route('grupos.solicitudes.store', $grupo) }}" method="POST" enctype="multipart/form-data" class="space-y-6">
             @csrf
 
             {{-- Número de Radicado --}}
@@ -83,17 +83,38 @@
                 </select>
             </div>
 
-            {{-- Firma Digital --}}
-            <div class="flex items-center">
-                <label class="inline-flex items-center">
+            {{-- Firma digital y archivo --}}
+            <div x-data="{ requiereAdjunto: @json(old('firma_digital', false)) }" class="max-w-md mx-auto mt-6">
+
+                {{-- Para enviar el valor falso si no se marca --}}
+                <input type="hidden" name="firma_digital" value="0">
+
+                <label class="inline-flex items-center mb-3 cursor-pointer select-none">
                     <input
                         type="checkbox"
                         name="firma_digital"
+                        x-model="requiereAdjunto"
                         value="1"
-                        class="form-checkbox"
-                        {{ old('firma_digital') ? 'checked' : '' }}>
-                    <span class="ml-2">¿Requiere documento adjunto para completarlo?</span>
+                        class="form-checkbox h-5 w-5 text-indigo-600 transition duration-150 ease-in-out"
+                    >
+                    <span class="ml-3 text-gray-800 font-medium">¿Requiere documento adjunto para completarlo?</span>
                 </label>
+
+                {{-- Campo para subir el archivo, visible solo si se marca --}}
+                <div x-show="requiereAdjunto" x-transition.opacity class="mt-4">
+                    <label for="archivo" class="block text-sm font-semibold text-gray-700 mb-2">Subir Documento</label>
+                    <input
+                        type="file"
+                        id="archivo"
+                        name="archivo"
+                        x-ref="archivoInput"
+                        @change="if ($refs.archivoInput.files[0]?.size > 10485760) { alert('El archivo no puede superar los 10 MB.'); $refs.archivoInput.value = '' }"
+                        class="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
+                    />
+                    @error('archivo')
+                        <p class="text-red-600 text-sm mt-1">{{ $message }}</p>
+                    @enderror
+                </div>
             </div>
 
 

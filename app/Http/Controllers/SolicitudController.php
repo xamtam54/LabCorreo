@@ -46,24 +46,44 @@ class SolicitudController extends Controller
 
     public function store(Request $request, Grupo $grupo, BusinessDaysCalculator $calculator)
     {
-        $data = $request->validate([
+        $rules = [
             'numero_radicado' => 'required|string|unique:solicitud',
             'tipo_solicitud_id' => 'required|exists:tipo_solicitud,id',
             'remitente' => 'required|string|max:255',
-            'asunto' => 'nullable|string',
+            'asunto' => 'nullable|string|max:255',
             'contenido' => 'nullable|string',
             'medio_recepcion_id' => 'required|exists:medio_recepcion,id',
             'fecha_ingreso' => 'required|date',
-            'documento_adjunto_id' => 'nullable|exists:documento,id',
-            'fecha_vencimiento' => 'nullable|date',
+            'fecha_vencimiento' => 'nullable|date|after_or_equal:fecha_ingreso',
             'estado_id' => 'required|exists:estado_solicitud,id',
             'firma_digital' => 'boolean',
-        ]);
+        ];
 
+        if ($request->boolean('firma_digital')) {
+            $rules['archivo'] = 'nullable|file|max:10240'; // 10 MB
+        }
+
+        $data = $request->validate($rules);
         $data['usuario_id'] = Auth::user()->id;
         $data['grupo_id'] = $grupo->id;
 
-        // Crear la solicitud
+        // Si hay archivo adjunto, guardarlo y crear registro
+        if ($request->boolean('firma_digital') && $request->hasFile('archivo')) {
+            $path = $request->file('archivo')->store('documentos');
+
+            $documento = Documento::create([
+                'editor_id' => Auth::user()->id,
+                'nombre_archivo' => $request->file('archivo')->getClientOriginalName(),
+                'tamano_mb' => round($request->file('archivo')->getSize() / 1048576, 2),
+                'ruta' => $path,
+            ]);
+
+            $data['documento_adjunto_id'] = $documento->id;
+        } else {
+            $data['documento_adjunto_id'] = null;
+        }
+
+        // Crear solicitud
         $solicitud = Solicitud::create($data);
 
         // Calcular estado según días hábiles
@@ -76,6 +96,7 @@ class SolicitudController extends Controller
         return redirect()->route('grupos.solicitudes.index', $grupo)
                         ->with('success', 'Solicitud creada con éxito.');
     }
+
 
     public function update(Request $request, Grupo $grupo, Solicitud $solicitud, BusinessDaysCalculator $calculator)
     {

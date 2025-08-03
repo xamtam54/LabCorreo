@@ -16,7 +16,6 @@
                 <p class="text-gray-600 text-sm">{{ $solicitud->numero_radicado }}</p>
             </div>
 
-
             {{-- Fecha de Ingreso --}}
             <div>
                 <label for="fecha_ingreso" class="block text-sm font-medium text-gray-700 mb-1">Fecha de Ingreso</label>
@@ -31,25 +30,14 @@
             {{-- Fecha de Vencimiento --}}
             <div>
                 <label for="fecha_vencimiento" class="block text-sm font-medium text-gray-700 mb-1">Fecha de Vencimiento</label>
-                <input
-                    type="date"
-                    id="fecha_vencimiento"
-                    name="fecha_vencimiento"
+                <input type="date" id="fecha_vencimiento" name="fecha_vencimiento"
                     value="{{ old('fecha_vencimiento', isset($fechaVencimiento) ? $fechaVencimiento->format('Y-m-d') : ($solicitud->fecha_vencimiento ? \Carbon\Carbon::parse($solicitud->fecha_vencimiento)->format('Y-m-d') : now()->format('Y-m-d'))) }}"
                     readonly
-                    class="w-full p-3 border border-gray-300 rounded-md bg-gray-100 cursor-not-allowed"
-                >
+                    class="w-full p-3 border border-gray-300 rounded-md bg-gray-100 cursor-not-allowed">
                 @error('fecha_vencimiento')
                     <p class="text-red-600 text-sm mt-1">{{ $message }}</p>
                 @enderror
             </div>
-
-            {{-- Estado --}}
-            {{-- <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Estado</label>
-                <input type="text" value="Nueva" class="w-full p-3 border border-gray-300 rounded-md bg-gray-100 text-gray-500" disabled>
-                <input type="hidden" name="estado_id" value="{{ App\Models\EstadoSolicitud::where('nombre', 'Nueva')->first()->id }}">
-            </div>--}}
 
             <input type="hidden" name="estado_id" value="{{ App\Models\EstadoSolicitud::where('nombre', 'Nueva')->first()->id }}">
 
@@ -70,8 +58,8 @@
             </div>
 
             {{-- Remitente --}}
-            <div x-data="{ remitente: '{{ old('remitente', $solicitud->remitente) }}' }">
-                <label for="remitente" class="block text-sm font-medium text-gray-700 mb-0">Remitente</label>
+            <div x-data="{ remitente: @js(old('remitente', $solicitud->remitente)) }">
+                <label for="remitente" class="block text-sm font-medium text-gray-700 mb-1">Remitente</label>
                 <input type="text" id="remitente" name="remitente" x-model="remitente" maxlength="100"
                     class="w-full p-3 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 text-sm" required>
                 <div class="text-xs text-gray-500 text-right mt-0" x-text="remitente.length + ' / 100'"></div>
@@ -81,7 +69,7 @@
             </div>
 
             {{-- Asunto --}}
-            <div x-data="{ asunto: '{{ old('asunto', $solicitud->asunto) }}' }">
+            <div x-data="{ asunto: @js(old('asunto', $solicitud->asunto)) }">
                 <label for="asunto" class="block text-sm font-medium text-gray-700 mb-1">Asunto</label>
                 <textarea id="asunto" name="asunto" x-model="asunto" maxlength="255"
                     rows="4"
@@ -93,15 +81,14 @@
             </div>
 
             {{-- Contenido --}}
-            <div x-data="{ contenido: '{{ old('contenido', isset($solicitud) ? $solicitud->contenido : '') }}' }" class="mt-4">
-                <label class="block text-sm font-medium text-gray-700 mb-1">Contenido</label>
+            <div x-data="{ contenido: @js(old('contenido', $solicitud->contenido ?? '')) }" class="mt-4">
+                <label for="contenido" class="block text-sm font-medium text-gray-700 mb-1">Contenido</label>
                 <textarea name="contenido" x-model="contenido" maxlength="3000"
                     rows="6"
                     class="w-full p-3 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 text-sm resize-y"
                     placeholder="Escribe el contenido detallado de la solicitud..."></textarea>
                 <div class="text-xs text-gray-500 text-right mt-1" x-text="contenido.length + ' / 3000'"></div>
             </div>
-
 
             {{-- Medio de Recepción --}}
             <div>
@@ -119,68 +106,75 @@
                 @enderror
             </div>
 
-            <div x-data="{ requiereAdjunto: @json(old('firma_digital', $solicitud->firma_digital)) }" class="max-w-md mx-auto">
-    <label class="inline-flex items-center mb-3 cursor-pointer select-none">
-        <input
-            type="checkbox"
-            name="firma_digital"
-            x-model="requiereAdjunto"
-            value="1"
-            class="form-checkbox h-5 w-5 text-indigo-600 transition duration-150 ease-in-out"
-            {{ old('firma_digital', $solicitud->firma_digital) ? 'checked' : '' }}>
-        <span class="ml-3 text-gray-800 font-medium">¿Requiere documento adjunto para completarlo?</span>
-    </label>
+            {{-- Firma digital y archivo --}}
+            <div x-data="{ requiereAdjunto: {{ old('firma_digital', $solicitud->firma_digital) ? 'true' : 'false' }} }" class="max-w-md mx-auto">
+                <input type="hidden" name="firma_digital" value="0">
+                <label class="inline-flex items-center mb-3 cursor-pointer select-none">
+                    <input
+                        type="checkbox"
+                        name="firma_digital"
+                        value="1"
+                        x-model="requiereAdjunto"
+                        class="form-checkbox h-5 w-5 text-indigo-600 transition duration-150 ease-in-out">
+                    <span class="ml-3 text-gray-800 font-medium">¿Requiere documento adjunto para completarlo?</span>
+                </label>
 
-    <div x-show="requiereAdjunto" x-transition.opacity class="mt-4">
-        <label for="archivo" class="block text-sm font-semibold text-gray-700 mb-2">Subir Documento</label>
-        <input
-            type="file"
-            id="archivo"
-            name="archivo"
-            x-ref="archivoInput"
-            @change="if ($refs.archivoInput.files[0]?.size > 10485760) { alert('El archivo no puede superar los 10 MB.'); $refs.archivoInput.value = '' }"
-            class="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
-        />
-        @error('archivo')
-            <p class="text-red-600 text-sm mt-1">{{ $message }}</p>
-        @enderror
-    </div>
+                {{-- Campo para subir archivo, visible solo si la casilla está marcada --}}
+                <div x-show="requiereAdjunto" x-transition.opacity class="mt-4">
+                    <label for="archivo" class="block text-sm font-semibold text-gray-700 mb-2">Subir Documento</label>
+                    <input
+                        type="file"
+                        id="archivo"
+                        name="archivo"
+                        x-ref="archivoInput"
+                        @change="if ($refs.archivoInput.files[0]?.size > 10485760) { alert('El archivo no puede superar los 10 MB.'); $refs.archivoInput.value = '' }"
+                        class="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition" />
+                    @error('archivo')
+                        <p class="text-red-600 text-sm mt-1">{{ $message }}</p>
+                    @enderror
+                </div>
 
-    {{-- Mostrar el documento actual siempre que exista --}}
-            @if($solicitud->documento)
-                <div class="max-w-md bg-white border border-gray-300 rounded-lg p-5 shadow-sm hover:shadow-md transition-shadow duration-200">
-                    <a href="{{ route('grupos.solicitudes.documento.ver', ['grupo' => $solicitud->grupo_id, 'id' => $solicitud->documento->id]) }}"
-                       target="_blank"
-                       class="text-indigo-600 hover:text-indigo-900 hover:underline font-semibold">
-                        {{ $solicitud->documento->nombre_archivo }}
-                    </a>
-                    <span class="text-gray-400 text-sm mx-2 select-none">•</span>
-                    <small class="text-gray-500 text-sm">{{ number_format(($solicitud->documento->tamano_mb ?? 0), 2) }} MB</small>
-                    <span class="text-gray-400 text-sm mx-2 select-none">•</span>
-                    <div class="flex items-center justify-between mt-2">
-                        <a href="{{ route('grupos.solicitudes.documento.descargar', ['grupo' => $solicitud->grupo_id, 'id' => $solicitud->documento->id]) }}"
-                        class="text-green-600 hover:text-green-900 hover:underline font-semibold"
-                        download>
-                            Descargar
+                {{-- Documento actual si existe --}}
+                @if ($solicitud->documento && is_object($solicitud->documento))
+                    <div class="mt-6 max-w-md bg-white border border-gray-300 rounded-lg p-5 shadow-sm hover:shadow-md transition-shadow duration-200">
+                        <a href="{{ route('grupos.solicitudes.documento.ver', [
+                                'grupo' => $solicitud->grupo_id,
+                                'documento' => $solicitud->documento->id
+                            ]) }}"
+                            target="_blank"
+                            class="text-indigo-600 hover:text-indigo-900 hover:underline font-semibold">
+                            {{ $solicitud->documento->nombre_archivo }}
                         </a>
 
-                        <button type="button"
-                            class="text-red-600 hover:text-red-800 hover:underline font-semibold ml-4"
-                            onclick="eliminarDocumento({{ $solicitud->grupo_id }}, {{ $solicitud->documento->id }})">
-                            Eliminar
-                        </button>
+                        <span class="text-gray-400 text-sm mx-2 select-none">•</span>
+                        <small class="text-gray-500 text-sm">
+                            {{ number_format(($solicitud->documento->tamano_mb ?? 0), 2) }} MB
+                        </small>
+
+                        <div class="flex items-center justify-between mt-2">
+                            <a href="{{ route('grupos.solicitudes.documento.descargar', [
+                                    'grupo' => $solicitud->grupo_id,
+                                    'documento' => $solicitud->documento->id
+                                ]) }}"
+                                class="text-green-600 hover:text-green-900 hover:underline font-semibold"
+                                download>
+                                Descargar
+                            </a>
+
+                            <button type="button"
+                                class="text-red-600 hover:text-red-800 hover:underline font-semibold ml-4"
+                                onclick="eliminarDocumento({{ $solicitud->grupo_id }}, {{ $solicitud->documento->id }})">
+                                Eliminar
+                            </button>
+                        </div>
                     </div>
-
-                </div>
-            @else
-                <p class="text-gray-500 italic">No hay archivo adjunto para esta solicitud.</p>
-            @endif
-
+                @else
+                    <p class="text-gray-500 italic mt-4">No hay archivo adjunto para esta solicitud.</p>
+                @endif
+            </div>
 
 
-</div>
-
-            {{-- Botón de envío --}}
+            {{-- Botones --}}
             <div class="pt-4 text-right space-x-2">
                 <x-gray-button text="Cancelar" :href="route('grupos.solicitudes.index', $grupo)" />
                 <x-blue-button type="submit" text="Actualizar Solicitud" />
@@ -189,15 +183,16 @@
     </div>
 </x-app-layout>
 
+{{-- Script para eliminar documento --}}
 <script>
 function eliminarDocumento(grupoId, documentoId) {
     if (confirm('¿Estás seguro de que deseas eliminar este documento?')) {
         const form = document.createElement('form');
         form.method = 'POST';
-        // Usamos Blade para generar la URL base correctamente
-        form.action = @json(route('grupos.solicitudes.documento.eliminar', ['grupo' => '__GRUPO__', 'id' => '__ID__']))
-            .replace('__GRUPO__', grupoId)
-            .replace('__ID__', documentoId);
+        form.action = @json(route('grupos.solicitudes.documento.eliminar', [
+            'grupo' => '__GRUPO__',
+            'documento' => '__DOCUMENTO__'
+        ])).replace('__GRUPO__', grupoId).replace('__DOCUMENTO__', documentoId);
 
         const token = document.createElement('input');
         token.type = 'hidden';
@@ -217,24 +212,20 @@ function eliminarDocumento(grupoId, documentoId) {
 }
 </script>
 
-
+{{-- Script para calcular fecha de vencimiento --}}
 <script>
-    window.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', () => {
     const fechaInput = document.getElementById('fecha_ingreso');
     if (fechaInput && fechaInput.value) {
-        // Disparar el evento de cambio manualmente
         fechaInput.dispatchEvent(new Event('change'));
     }
-    });
 
-    const apiUrl = "{{ url('api/calcular-fecha') }}";
-
-    document.getElementById('fecha_ingreso').addEventListener('change', async function() {
-        const fechaInicial = this.value;
+    fechaInput.addEventListener('change', async () => {
+        const fechaInicial = fechaInput.value;
         if (!fechaInicial) return;
 
         try {
-            const response = await fetch(apiUrl + '?fecha=' + fechaInicial);
+            const response = await fetch("{{ url('api/calcular-fecha') }}?fecha=" + fechaInicial);
             if (!response.ok) throw new Error('Error en la llamada a la API');
 
             const data = await response.json();
@@ -244,4 +235,5 @@ function eliminarDocumento(grupoId, documentoId) {
             alert('No se pudo calcular la fecha de vencimiento.');
         }
     });
+});
 </script>
