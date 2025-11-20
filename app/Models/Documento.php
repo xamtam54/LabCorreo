@@ -16,6 +16,13 @@ class Documento extends Model
         'editor_id', 'nombre_archivo', 'tamano_mb', 'ruta'
     ];
 
+    public function solicitudes()
+    {
+        return $this->belongsToMany(\App\Models\Solicitud::class, 'solicitud_documento')
+                    ->withPivot('orden')
+                    ->withTimestamps();
+    }
+    
     public function editor()
     {
         return $this->belongsTo(Usuario::class, 'editor_id');

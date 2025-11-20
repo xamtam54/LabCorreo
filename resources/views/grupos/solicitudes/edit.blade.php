@@ -1,6 +1,6 @@
 <x-app-layout>
-    <div class="p-8 bg-white rounded-2xl shadow-md max-w-3xl mx-auto mt-8">
-        <h2 class="text-3xl font-bold text-gray-800 mb-8">Editar Solicitud</h2>
+    <div class="p-8 bg-white rounded-2xl shadow-md max-w-4xl mx-auto mt-8">
+        <h2 class="text-3xl font-bold text-gray-800 mb-8">Editar Solicitud #{{ $solicitud->numero_radicado }}</h2>
 
         <form action="{{ route('grupos.solicitudes.update', ['grupo' => $grupo, 'solicitud' => $solicitud->id]) }}"
               method="POST"
@@ -9,11 +9,30 @@
             @csrf
             @method('PUT')
 
+            {{-- Información de Radicación (Solo lectura) --}}
+            <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Tipo de Radicación</label>
+                        <p class="text-gray-900 font-semibold">
+                            @if($solicitud->tipo_radicacion === 'E') Entrada
+                            @elseif($solicitud->tipo_radicacion === 'S') Salida
+                            @elseif($solicitud->tipo_radicacion === 'I') Interna
+                            @endif
+                        </p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Dependencia</label>
+                        <p class="text-gray-900 font-semibold">{{ $solicitud->dependencia }}</p>
+                    </div>
+                </div>
+            </div>
+
             {{-- Número de Radicado --}}
             <div>
-                <label for="numero_radicado" class="block text-sm font-medium text-gray-700 mb-1">Número de Radicado</label>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Número de Radicado</label>
                 <input type="hidden" name="numero_radicado" value="{{ $solicitud->numero_radicado }}">
-                <p class="text-gray-600 text-sm">{{ $solicitud->numero_radicado }}</p>
+                <p class="text-gray-900 font-semibold text-lg">{{ $solicitud->numero_radicado }}</p>
             </div>
 
             {{-- Fecha de Ingreso --}}
@@ -21,7 +40,7 @@
                 <label for="fecha_ingreso" class="block text-sm font-medium text-gray-700 mb-1">Fecha de Ingreso</label>
                 <input type="date" id="fecha_ingreso" name="fecha_ingreso"
                     value="{{ old('fecha_ingreso', \Carbon\Carbon::parse($solicitud->fecha_ingreso)->format('Y-m-d')) }}"
-                    class="w-full p-3 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500" required>
+                    class="w-full p-3 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" required>
                 @error('fecha_ingreso')
                     <p class="text-red-600 text-sm mt-1">{{ $message }}</p>
                 @enderror
@@ -31,7 +50,7 @@
             <div>
                 <label for="fecha_vencimiento" class="block text-sm font-medium text-gray-700 mb-1">Fecha de Vencimiento</label>
                 <input type="date" id="fecha_vencimiento" name="fecha_vencimiento"
-                    value="{{ old('fecha_vencimiento', isset($fechaVencimiento) ? $fechaVencimiento->format('Y-m-d') : ($solicitud->fecha_vencimiento ? \Carbon\Carbon::parse($solicitud->fecha_vencimiento)->format('Y-m-d') : now()->format('Y-m-d'))) }}"
+                    value="{{ old('fecha_vencimiento', $solicitud->fecha_vencimiento ? \Carbon\Carbon::parse($solicitud->fecha_vencimiento)->format('Y-m-d') : now()->format('Y-m-d')) }}"
                     readonly
                     class="w-full p-3 border border-gray-300 rounded-md bg-gray-100 cursor-not-allowed">
                 @error('fecha_vencimiento')
@@ -39,13 +58,13 @@
                 @enderror
             </div>
 
-            <input type="hidden" name="estado_id" value="{{ App\Models\EstadoSolicitud::where('nombre', 'Nueva')->first()->id }}">
+            <input type="hidden" name="estado_id" value="{{ $solicitud->estado_id }}">
 
             {{-- Tipo de Solicitud --}}
             <div>
                 <label for="tipo_solicitud_id" class="block text-sm font-medium text-gray-700 mb-1">Tipo de Solicitud</label>
                 <select id="tipo_solicitud_id" name="tipo_solicitud_id"
-                    class="w-full p-3 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500" required>
+                    class="w-full p-3 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" required>
                     @foreach($tiposSolicitud as $id => $nombre)
                         <option value="{{ $id }}" {{ old('tipo_solicitud_id', $solicitud->tipo_solicitud_id) == $id ? 'selected' : '' }}>
                             {{ $nombre }}
@@ -57,36 +76,274 @@
                 @enderror
             </div>
 
-            {{-- Remitente --}}
-            <div x-data="{ remitente: @js(old('remitente', $solicitud->remitente)) }">
-                <label for="remitente" class="block text-sm font-medium text-gray-700 mb-1">Remitente</label>
-                <input type="text" id="remitente" name="remitente" x-model="remitente" maxlength="100"
-                    class="w-full p-3 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 text-sm" required>
-                <div class="text-xs text-gray-500 text-right mt-0" x-text="remitente.length + ' / 100'"></div>
-                @error('remitente')
+            {{-- ================= REMITENTE ================= --}}
+            <div x-data="{
+                tipo: '{{ old('tipo_remitente_id', $solicitud->tipo_remitente_id) }}',
+                busqueda: '{{ old('rem_nombre', $solicitud->remitente ? $solicitud->remitente->nombre : '') }}',
+                remitenteSeleccionado: @js(old('remitente_id') ?
+                    \App\Models\Remitente::find(old('remitente_id')) :
+                    ($solicitud->remitente_id && !$solicitud->es_anonimo ? $solicitud->remitente : null)
+                ),
+                mostrandoSugerencias: false,
+                todosRemitentes: {{ $remitentes->whereNotIn('tipo_remitente_id', [2])->values()->toJson() }},
+
+                get remitentesEncontrados() {
+                    if (!this.busqueda.trim() || this.tipo == '2') return [];
+                    const busq = this.busqueda.toLowerCase();
+                    return this.todosRemitentes.filter(r =>
+                        r.nombre?.toLowerCase().includes(busq) ||
+                        r.numero_documento?.includes(busq) ||
+                        r.correo?.toLowerCase().includes(busq)
+                    ).slice(0, 5);
+                },
+
+                seleccionarRemitente(remitente) {
+                    this.remitenteSeleccionado = remitente;
+                    this.busqueda = remitente.nombre;
+                    this.mostrandoSugerencias = false;
+                },
+
+                limpiarSeleccion() {
+                    this.remitenteSeleccionado = null;
+                    this.busqueda = '';
+                },
+
+                esNuevoRemitente() {
+                    return this.busqueda.trim() &&
+                        !this.remitenteSeleccionado &&
+                        this.remitentesEncontrados.length === 0;
+                },
+
+                mostrarFormulario() {
+                    return this.tipo === '2' || this.remitenteSeleccionado || this.esNuevoRemitente();
+                }
+            }"
+            x-init="
+                // Inicializar búsqueda con el nombre del remitente seleccionado
+                if (remitenteSeleccionado) {
+                    busqueda = remitenteSeleccionado.nombre;
+                }
+            "
+            class="space-y-4 border-t pt-6">
+
+                <label for="tipo_remitente_id" class="block text-sm font-semibold mb-1">
+                    Tipo de Remitente *
+                </label>
+                <select id="tipo_remitente_id"
+                        name="tipo_remitente_id"
+                        x-model="tipo"
+                        @change="limpiarSeleccion()"
+                        required
+                        class="w-full p-3 border rounded mb-1">
+                    <option value="">Seleccione...</option>
+                    @foreach ($tipos_remitente as $t)
+                        <option value="{{ $t->id }}"
+                                {{ old('tipo_remitente_id', $solicitud->tipo_remitente_id) == $t->id ? 'selected' : '' }}>
+                            {{ $t->nombre }}
+                        </option>
+                    @endforeach
+                </select>
+                @error('tipo_remitente_id')
                     <p class="text-red-600 text-sm mt-1">{{ $message }}</p>
                 @enderror
+
+                {{-- Remitente Actual (solo mostrar si hay remitente y no se ha limpiado la selección) --}}
+                <div x-show="remitenteSeleccionado && tipo !== '2'"
+                    class="p-4 bg-blue-50 border border-blue-200 rounded-lg mb-4">
+                    <div class="flex items-start justify-between">
+                        <div>
+                            <p class="text-sm font-medium text-blue-800 mb-2">Remitente seleccionado:</p>
+                            <p class="font-semibold text-blue-900" x-text="remitenteSeleccionado?.nombre"></p>
+                            <div class="text-sm text-blue-700">
+                                <span x-show="remitenteSeleccionado?.numero_documento">
+                                    Doc: <span x-text="remitenteSeleccionado?.numero_documento"></span>
+                                </span>
+                                <span x-show="remitenteSeleccionado?.correo">
+                                    • <span x-text="remitenteSeleccionado?.correo"></span>
+                                </span>
+                            </div>
+                        </div>
+                        <button type="button"
+                                @click="limpiarSeleccion()"
+                                class="text-blue-600 hover:text-blue-800 text-sm font-medium">
+                            Cambiar remitente
+                        </button>
+                    </div>
+                    {{-- Hidden input para enviar el ID del remitente seleccionado --}}
+                    <input type="hidden" name="remitente_id" :value="remitenteSeleccionado?.id">
+                </div>
+
+                {{-- BÚSQUEDA INTELIGENTE (solo si NO es anónimo y NO hay remitente seleccionado) --}}
+                <div x-show="tipo !== '' && tipo !== '2' && !remitenteSeleccionado" class="space-y-3">
+                    <div class="relative" @click.away="mostrandoSugerencias = false">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            Buscar o Crear Remitente *
+                        </label>
+                        <div class="relative">
+                            <input type="text"
+                                x-model="busqueda"
+                                @focus="mostrandoSugerencias = true"
+                                @input="mostrandoSugerencias = true"
+                                placeholder="Escribe el nombre, documento o correo del remitente..."
+                                class="w-full p-3 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            <div class="absolute inset-y-0 right-0 flex items-center pr-3">
+                                <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                                </svg>
+                            </div>
+                        </div>
+
+                        {{-- Sugerencias --}}
+                        <div x-show="mostrandoSugerencias && busqueda.length >= 2 && remitentesEncontrados.length > 0"
+                            x-transition
+                            class="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-auto">
+                            <template x-for="remitente in remitentesEncontrados" :key="remitente.id">
+                                <button type="button"
+                                        @click="seleccionarRemitente(remitente)"
+                                        class="w-full px-4 py-3 text-left hover:bg-blue-50 border-b border-gray-100 last:border-b-0 transition">
+                                    <div class="font-medium text-gray-900" x-text="remitente.nombre"></div>
+                                    <div class="text-xs text-gray-500 mt-1 space-y-0.5">
+                                        <div x-show="remitente.numero_documento">
+                                            Doc: <span x-text="remitente.numero_documento"></span>
+                                        </div>
+                                        <div x-show="remitente.correo">
+                                            Email: <span x-text="remitente.correo"></span>
+                                        </div>
+                                    </div>
+                                </button>
+                            </template>
+                        </div>
+
+                        {{-- Mensaje: crear nuevo --}}
+                        <div x-show="esNuevoRemitente() && busqueda.length >= 3"
+                            x-transition
+                            class="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                            <div class="flex items-center">
+                                <svg class="w-5 h-5 text-blue-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                                </svg>
+                                <span class="text-sm font-medium text-blue-800">
+                                    No se encontró el remitente. Se creará uno nuevo.
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {{-- FORMULARIO DE DATOS DEL REMITENTE --}}
+                <div x-show="mostrarFormulario()"
+                    x-transition
+                    class="p-4 border-2 rounded-lg space-y-3"
+                    :class="{
+                        'border-yellow-300 bg-yellow-50': tipo === '2',
+                        'border-green-300 bg-green-50': remitenteSeleccionado,
+                        'border-blue-300 bg-blue-50': esNuevoRemitente()
+                    }">
+
+                    <h3 class="font-semibold mb-3 flex items-center"
+                        :class="{
+                            'text-yellow-900': tipo === '2',
+                            'text-green-900': remitenteSeleccionado,
+                            'text-blue-900': esNuevoRemitente()
+                        }">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                        </svg>
+                        <span x-text="tipo === '2' ? 'Remitente Anónimo' :
+                                    (remitenteSeleccionado ? 'Datos del Remitente Seleccionado' : 'Datos del Nuevo Remitente')">
+                        </span>
+                    </h3>
+
+                    {{-- Nombre --}}
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Nombre Completo *</label>
+                        <input type="text"
+                            name="rem_nombre"
+                            :value="tipo === '2' ? 'Anónimo' :
+                                    (remitenteSeleccionado ? remitenteSeleccionado.nombre : busqueda)"
+                            :readonly="tipo === '2' || remitenteSeleccionado"
+                            required
+                            class="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                            :class="{'bg-gray-100': tipo === '2' || remitenteSeleccionado}">
+                    </div>
+
+                    {{-- Mostrar solo si NO es anónimo --}}
+                    <template x-if="tipo !== '2'">
+                        <div class="space-y-3">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Tipo de Documento *</label>
+                                <select name="rem_tipo_documento_id"
+                                        :disabled="remitenteSeleccionado"
+                                        :required="tipo !== '2'"
+                                        class="w-full p-2.5 border border-gray-300 rounded-lg"
+                                        :class="{'bg-gray-100': remitenteSeleccionado}">
+                                    <option value="">Seleccione...</option>
+                                    @foreach(App\Models\TipoDocumentoIdentificacion::all() as $tipoDoc)
+                                        <option value="{{ $tipoDoc->id }}"
+                                                x-bind:selected="remitenteSeleccionado &&
+                                                                remitenteSeleccionado.tipo_documento_identificacion_id == {{ $tipoDoc->id }}">
+                                            {{ $tipoDoc->nombre }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Número de Documento *</label>
+                                    <input type="text"
+                                        name="rem_numero_documento"
+                                        :value="remitenteSeleccionado ? remitenteSeleccionado.numero_documento : ''"
+                                        :readonly="remitenteSeleccionado"
+                                        :required="tipo !== '2'"
+                                        class="w-full p-2.5 border border-gray-300 rounded-lg"
+                                        :class="{'bg-gray-100': remitenteSeleccionado}">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Teléfono</label>
+                                    <input type="text"
+                                        name="rem_telefono"
+                                        :value="remitenteSeleccionado ? remitenteSeleccionado.telefono : ''"
+                                        :readonly="remitenteSeleccionado"
+                                        class="w-full p-2.5 border border-gray-300 rounded-lg"
+                                        :class="{'bg-gray-100': remitenteSeleccionado}">
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Correo Electrónico</label>
+                                <input type="email"
+                                    name="rem_correo"
+                                    :value="remitenteSeleccionado ? remitenteSeleccionado.correo : ''"
+                                    :readonly="remitenteSeleccionado"
+                                    class="w-full p-2.5 border border-gray-300 rounded-lg"
+                                    :class="{'bg-gray-100': remitenteSeleccionado}">
+                            </div>
+                        </div>
+                    </template>
+                </div>
             </div>
+            {{-- =============== FIN REMITENTE =============== --}}
 
             {{-- Asunto --}}
             <div x-data="{ asunto: @js(old('asunto', $solicitud->asunto)) }">
-                <label for="asunto" class="block text-sm font-medium text-gray-700 mb-1">Asunto</label>
-                <textarea id="asunto" name="asunto" x-model="asunto" maxlength="255"
-                    rows="4"
-                    class="w-full p-3 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 text-sm resize-y"></textarea>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Asunto</label>
+                <textarea name="asunto" x-model="asunto" maxlength="255"
+                          rows="4"
+                          class="w-full p-3 border border-gray-300 rounded-md text-sm resize-y"></textarea>
                 <div class="text-xs text-gray-500 text-right" x-text="asunto.length + ' / 255'"></div>
-                @error('asunto')
-                    <p class="text-red-600 text-sm mt-1">{{ $message }}</p>
-                @enderror
             </div>
 
             {{-- Contenido --}}
             <div x-data="{ contenido: @js(old('contenido', $solicitud->contenido ?? '')) }" class="mt-4">
-                <label for="contenido" class="block text-sm font-medium text-gray-700 mb-1">Contenido</label>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Contenido</label>
                 <textarea name="contenido" x-model="contenido" maxlength="3000"
-                    rows="6"
-                    class="w-full p-3 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 text-sm resize-y"
-                    placeholder="Escribe el contenido detallado de la solicitud..."></textarea>
+                          rows="6"
+                          class="w-full p-3 border border-gray-300 rounded-md text-sm resize-y"
+                          placeholder="Escribe el contenido detallado de la solicitud..."></textarea>
                 <div class="text-xs text-gray-500 text-right mt-1" x-text="contenido.length + ' / 3000'"></div>
             </div>
 
@@ -94,123 +351,172 @@
             <div>
                 <label for="medio_recepcion_id" class="block text-sm font-medium text-gray-700 mb-1">Medio de Recepción</label>
                 <select id="medio_recepcion_id" name="medio_recepcion_id"
-                    class="w-full p-3 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500" required>
+                    class="w-full p-3 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" required>
                     @foreach($mediosRecepcion as $id => $nombre)
                         <option value="{{ $id }}" {{ old('medio_recepcion_id', $solicitud->medio_recepcion_id) == $id ? 'selected' : '' }}>
                             {{ $nombre }}
                         </option>
                     @endforeach
                 </select>
-                @error('medio_recepcion_id')
-                    <p class="text-red-600 text-sm mt-1">{{ $message }}</p>
-                @enderror
             </div>
 
-            {{-- Firma digital y archivo --}}
-            <div x-data="{ requiereAdjunto: {{ old('firma_digital', $solicitud->firma_digital) ? 'true' : 'false' }} }" class="max-w-md mx-auto">
+            {{-- Gestión de Documentos --}}
+            <div x-data="{
+                    requiereAdjunto: {{ $solicitud->firma_digital ? 'true' : 'false' }},
+                    archivosExistentes: @js($solicitud->documentos->map(function($doc) {
+                        return [
+                            'id' => $doc->id,
+                            'nombre' => $doc->nombre_archivo,
+                            'tamano' => number_format($doc->tamano_mb, 2) . ' MB',
+                            'eliminar' => false
+                        ];
+                    })->values()->toArray()),
+                    archivosNuevos: [],
+                    agregarArchivos(event) {
+                        const nuevosArchivos = Array.from(event.target.files);
+                        nuevosArchivos.forEach(file => {
+                            this.archivosNuevos.push({
+                                file: file,
+                                nombre: file.name,
+                                tamano: (file.size / 1024 / 1024).toFixed(2) + ' MB',
+                                id: Date.now() + Math.random()
+                            });
+                        });
+                        event.target.value = '';
+                    },
+                    marcarParaEliminar(id) {
+                        const doc = this.archivosExistentes.find(d => d.id === id);
+                        if (doc) doc.eliminar = !doc.eliminar;
+                    },
+                    eliminarNuevo(id) {
+                        this.archivosNuevos = this.archivosNuevos.filter(a => a.id !== id);
+                    },
+                    getTotalSize() {
+                        const total = this.archivosNuevos.reduce((sum, a) => sum + a.file.size, 0);
+                        return (total / 1024 / 1024).toFixed(2);
+                    }
+                }"
+                class="border-t pt-6">
+
                 <input type="hidden" name="firma_digital" value="0">
-                <label class="inline-flex items-center mb-3 cursor-pointer select-none">
-                    <input
-                        type="checkbox"
-                        name="firma_digital"
-                        value="1"
-                        x-model="requiereAdjunto"
-                        class="form-checkbox h-5 w-5 text-indigo-600 transition duration-150 ease-in-out">
-                    <span class="ml-3 text-gray-800 font-medium">¿Requiere documento adjunto para completarlo?</span>
+
+                <label class="inline-flex items-center mb-4 cursor-pointer select-none">
+                    <input type="checkbox" name="firma_digital" x-model="requiereAdjunto" value="1"
+                           class="h-5 w-5 text-blue-600">
+                    <span class="ml-3 text-gray-800 font-medium">¿Requiere documentos adjuntos?</span>
                 </label>
 
-                {{-- Campo para subir archivo, visible solo si la casilla está marcada --}}
-                <div x-show="requiereAdjunto" x-transition.opacity class="mt-4">
-                    <label for="archivo" class="block text-sm font-semibold text-gray-700 mb-2">Subir Documento</label>
-                    <input
-                        type="file"
-                        id="archivo"
-                        name="archivo"
-                        x-ref="archivoInput"
-                        @change="if ($refs.archivoInput.files[0]?.size > 10485760) { alert('El archivo no puede superar los 10 MB.'); $refs.archivoInput.value = '' }"
-                        class="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition" />
-                    @error('archivo')
-                        <p class="text-red-600 text-sm mt-1">{{ $message }}</p>
-                    @enderror
-                </div>
+                <div x-show="requiereAdjunto" x-transition class="space-y-4">
 
-                {{-- Documento actual si existe --}}
-                @if ($solicitud->documento && is_object($solicitud->documento))
-                    <div class="mt-6 max-w-md bg-white border border-gray-300 rounded-lg p-5 shadow-sm hover:shadow-md transition-shadow duration-200">
-                        <a href="{{ route('grupos.solicitudes.documento.ver', [
-                                'grupo' => $solicitud->grupo_id,
-                                'documento' => $solicitud->documento->id
-                            ]) }}"
-                            target="_blank"
-                            class="text-indigo-600 hover:text-indigo-900 hover:underline font-semibold">
-                            {{ $solicitud->documento->nombre_archivo }}
-                        </a>
+                    {{-- Documentos Existentes --}}
+                    <div x-show="archivosExistentes.length > 0" class="space-y-3">
+                        <h4 class="font-semibold text-gray-800 flex items-center">
+                            <svg class="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                            </svg>
+                            Documentos Actuales
+                        </h4>
 
-                        <span class="text-gray-400 text-sm mx-2 select-none">•</span>
-                        <small class="text-gray-500 text-sm">
-                            {{ number_format(($solicitud->documento->tamano_mb ?? 0), 2) }} MB
-                        </small>
-
-                        <div class="flex items-center justify-between mt-2">
-                            <a href="{{ route('grupos.solicitudes.documento.descargar', [
-                                    'grupo' => $solicitud->grupo_id,
-                                    'documento' => $solicitud->documento->id
-                                ]) }}"
-                                class="text-green-600 hover:text-green-900 hover:underline font-semibold"
-                                download>
-                                Descargar
-                            </a>
-
-                            <button type="button"
-                                class="text-red-600 hover:text-red-800 hover:underline font-semibold ml-4"
-                                onclick="eliminarDocumento({{ $solicitud->grupo_id }}, {{ $solicitud->documento->id }})">
-                                Eliminar
-                            </button>
-                        </div>
+                        <template x-for="doc in archivosExistentes" :key="doc.id">
+                            <div class="flex items-center justify-between p-3 rounded-lg border transition"
+                                 :class="doc.eliminar ? 'bg-red-50 border-red-300' : 'bg-gray-50 border-gray-200'">
+                                <div class="flex items-center space-x-3 flex-1">
+                                    <svg class="w-8 h-8" :class="doc.eliminar ? 'text-red-400' : 'text-blue-500'"
+                                         fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+                                    </svg>
+                                    <div class="flex-1">
+                                        <p class="text-sm font-medium" :class="doc.eliminar ? 'text-red-600 line-through' : 'text-gray-900'"
+                                           x-text="doc.nombre"></p>
+                                        <p class="text-xs" :class="doc.eliminar ? 'text-red-500' : 'text-gray-500'"
+                                           x-text="doc.tamano"></p>
+                                    </div>
+                                </div>
+                                <button type="button"
+                                        @click="marcarParaEliminar(doc.id)"
+                                        class="px-3 py-1 rounded text-sm font-medium transition"
+                                        :class="doc.eliminar ? 'bg-gray-200 text-gray-700 hover:bg-gray-300' : 'bg-red-100 text-red-700 hover:bg-red-200'">
+                                    <span x-text="doc.eliminar ? 'Restaurar' : 'Eliminar'"></span>
+                                </button>
+                                <input type="hidden"
+                                       :name="doc.eliminar ? 'documentos_eliminar[]' : ''"
+                                       :value="doc.eliminar ? doc.id : ''">
+                            </div>
+                        </template>
                     </div>
-                @else
-                    <p class="text-gray-500 italic mt-4">No hay archivo adjunto para esta solicitud.</p>
-                @endif
+
+                    {{-- Agregar Nuevos Documentos --}}
+                    <div class="border-t pt-4">
+                        <h4 class="font-semibold text-gray-800 mb-3 flex items-center">
+                            <svg class="w-5 h-5 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                            </svg>
+                            Agregar Nuevos Documentos
+                        </h4>
+
+                        <div class="flex items-center gap-3 mb-4">
+                            <label for="nuevos-archivos" class="cursor-pointer inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+                                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                                </svg>
+                                Seleccionar Archivos
+                            </label>
+                            <input type="file"
+                                   id="nuevos-archivos"
+                                   @change="agregarArchivos($event)"
+                                   multiple
+                                   accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
+                                   class="hidden">
+                            <span class="text-sm text-gray-500">Máximo 10MB por archivo</span>
+                        </div>
+
+                        <div x-show="archivosNuevos.length > 0" class="space-y-2">
+                            <template x-for="archivo in archivosNuevos" :key="archivo.id">
+                                <div class="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg">
+                                    <div class="flex items-center space-x-3 flex-1">
+                                        <svg class="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+                                        </svg>
+                                        <div class="flex-1">
+                                            <p class="text-sm font-medium text-gray-900" x-text="archivo.nombre"></p>
+                                            <p class="text-xs text-gray-500" x-text="archivo.tamano"></p>
+                                        </div>
+                                    </div>
+                                    <button type="button"
+                                            @click="eliminarNuevo(archivo.id)"
+                                            class="text-red-500 hover:text-red-700">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                        </svg>
+                                    </button>
+                                </div>
+                            </template>
+                        </div>
+
+                        {{-- Campos hidden para nuevos archivos --}}
+                        <template x-for="(archivo, index) in archivosNuevos" :key="archivo.id">
+                            <input type="file"
+                                   :name="'archivos[' + index + ']'"
+                                   class="hidden"
+                                   x-ref="hiddenFile"
+                                   x-init="
+                                       const dataTransfer = new DataTransfer();
+                                       dataTransfer.items.add(archivo.file);
+                                       $el.files = dataTransfer.files;
+                                   ">
+                        </template>
+                    </div>
+                </div>
             </div>
 
-
             {{-- Botones --}}
-            <div class="pt-4 text-right space-x-2">
+            <div class="pt-6 flex items-center justify-between border-t">
                 <x-gray-button text="Cancelar" :href="route('grupos.solicitudes.index', $grupo)" />
                 <x-blue-button type="submit" text="Actualizar Solicitud" />
             </div>
         </form>
     </div>
 </x-app-layout>
-
-{{-- Script para eliminar documento --}}
-<script>
-function eliminarDocumento(grupoId, documentoId) {
-    if (confirm('¿Estás seguro de que deseas eliminar este documento?')) {
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = @json(route('grupos.solicitudes.documento.eliminar', [
-            'grupo' => '__GRUPO__',
-            'documento' => '__DOCUMENTO__'
-        ])).replace('__GRUPO__', grupoId).replace('__DOCUMENTO__', documentoId);
-
-        const token = document.createElement('input');
-        token.type = 'hidden';
-        token.name = '_token';
-        token.value = '{{ csrf_token() }}';
-
-        const method = document.createElement('input');
-        method.type = 'hidden';
-        method.name = '_method';
-        method.value = 'DELETE';
-
-        form.appendChild(token);
-        form.appendChild(method);
-        document.body.appendChild(form);
-        form.submit();
-    }
-}
-</script>
 
 {{-- Script para calcular fecha de vencimiento --}}
 <script>

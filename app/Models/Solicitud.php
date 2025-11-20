@@ -17,10 +17,11 @@ class Solicitud extends Model
     protected $fillable = [
         'numero_radicado',
         'tipo_solicitud_id',
-        'remitente',
+        'remitente_id',
         'asunto',
         'contenido',
         'medio_recepcion_id',
+        'tipo_remitente_id',
         'fecha_ingreso',
         'documento_adjunto_id',
         'fecha_vencimiento',
@@ -31,6 +32,10 @@ class Solicitud extends Model
         'grupo_id',
     ];
 
+    public function tipoRemitente()
+    {
+        return $this->belongsTo(TipoRemitente::class, 'tipo_remitente_id');
+    }
 
     public function scopeFiltrarTipo(Builder $query, $tipo)
     {
@@ -117,9 +122,16 @@ class Solicitud extends Model
         return $this->belongsTo(MedioRecepcion::class);
     }
 
-    public function documento()
+    public function remitente()
     {
-        return $this->belongsTo(Documento::class, 'documento_adjunto_id');
+        return $this->belongsTo(Remitente::class, 'remitente_id');
+    }
+
+    public function documentos()
+    {
+        return $this->belongsToMany(Documento::class, 'solicitud_documento')
+                    ->withPivot('orden')
+                    ->withTimestamps();
     }
 
     public function usuario()
@@ -131,12 +143,6 @@ class Solicitud extends Model
     {
         return $this->belongsTo(EstadoSolicitud::class, 'estado_id');
     }
-
-    /*
-    public function semaforo()
-    {
-        return $this->hasOne(Semaforo::class);
-    }*/
 
     public function reporte()
     {
@@ -164,5 +170,6 @@ class Solicitud extends Model
 
         return $estados['Cerrada']->id ?? $this->estado_id;
     }
+
 
 }

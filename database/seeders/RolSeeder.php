@@ -22,7 +22,8 @@ class RolSeeder extends Seeder
                                                     // No puede eliminar usuarios.
                                                     // Puede ver la actividad dentro de los grupos que gestiona.
         Rol::firstOrCreate(['nombre' => 'Miembro_grupo']); // Solo tiene acceso a los grupos a los que pertenece.
-                                                    // Puede participar en las actividades del grupo (comentar, subir archivos, visualizar contenido).
+                                                    // Puede participar en las actividades del grupo (comentar, subir archivos, visualizar
+                                                    // contenido).
                                                     // No puede crear ni administrar grupos ni gestionar usuarios.
 
         $user = User::firstOrCreate(

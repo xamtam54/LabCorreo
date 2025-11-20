@@ -4,8 +4,7 @@ namespace App\Services;
 
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Cache;
-//use Illuminate\Support\Facades\Log;
-
+use Illuminate\Support\Facades\Schema;
 use Carbon\Carbon;
 
 class BusinessDaysCalculator
@@ -14,7 +13,10 @@ class BusinessDaysCalculator
 
     public function __construct()
     {
-        $this->loadHolidays();
+        // Solo cargar si la tabla cache ya existe
+        if (Schema::hasTable('cache')) {
+            $this->loadHolidays();
+        }
     }
 
     protected function loadHolidays(): void
@@ -33,7 +35,6 @@ class BusinessDaysCalculator
                 "holidays_CO_$year",
                 now()->addYear(2), // duración del caché
                 function () use ($year) {
-                    //Log::info("Consultando API para festivos del año $year");  //  log
                     $response = Http::get("https://api.generadordni.es/v2/holidays/holidays", [
                         'country' => 'CO',
                         'year' => $year,
@@ -72,7 +73,7 @@ class BusinessDaysCalculator
     {
         $year = $date->year;
 
-        return $date->isWeekday() && // Lunes a viernes
+        return $date->isWeekday() &&
                !in_array($date->format('Y-m-d'), $this->holidays[$year] ?? []);
     }
 
@@ -90,5 +91,4 @@ class BusinessDaysCalculator
 
         return $days;
     }
-
 }
