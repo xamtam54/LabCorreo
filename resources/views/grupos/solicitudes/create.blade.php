@@ -60,6 +60,7 @@
             {{-- ================= REMITENTE ================= --}}
             <div x-data="{
                     tipo: '{{ old('tipo_remitente_id','') }}',
+                    tipoDocumento: '{{ old('rem_tipo_documento_id','') }}',
                     busqueda: '',
                     remitenteSeleccionado: null,
                     mostrandoSugerencias: false,
@@ -71,6 +72,58 @@
                     formNumDoc: '{{ old('rem_numero_documento', '') }}',
                     formTelefono: '{{ old('rem_telefono', '') }}',
                     formCorreo: '{{ old('rem_correo', '') }}',
+
+                    // Validaciones
+                    validarNombre(event) {
+                        // Solo letras, espacios, tildes, ñ, apóstrofes y guiones
+                        const regex = /^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s'\-]*$/;
+                        if (!regex.test(event.target.value)) {
+                            event.target.value = event.target.value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s'\-]/g, '');
+                            this.formNombre = event.target.value;
+                        }
+                    },
+
+                    validarDocumento(event) {
+                        const tipoDoc = this.formTipoDoc;
+                        let value = event.target.value;
+
+                        switch(tipoDoc) {
+                            case '1': // CC - Cédula de Ciudadanía (solo números)
+                            case '2': // TI - Tarjeta de Identidad (solo números)
+                            case '3': // CE - Cédula de Extranjería (solo números)
+                                value = value.replace(/[^0-9]/g, '');
+                                break;
+                            case '4': // PA - Pasaporte (alfanumérico)
+                                value = value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+                                break;
+                            case '5': // NIT (números y guión)
+                                value = value.replace(/[^0-9\-]/g, '');
+                                break;
+                            default:
+                                value = value.replace(/[^a-zA-Z0-9\-]/g, '');
+                        }
+
+                        event.target.value = value;
+                        this.formNumDoc = value;
+                    },
+
+                    validarTelefono(event) {
+                        // Solo números, espacios, paréntesis, guiones y signo +
+                        const regex = /^[0-9\s()\-+]*$/;
+                        if (!regex.test(event.target.value)) {
+                            event.target.value = event.target.value.replace(/[^0-9\s()\-+]/g, '');
+                            this.formTelefono = event.target.value;
+                        }
+                    },
+
+                    validarCorreo(event) {
+                        // Letras, números, puntos, guiones, guiones bajos y @
+                        const regex = /^[a-zA-Z0-9._@\-]*$/;
+                        if (!regex.test(event.target.value)) {
+                            event.target.value = event.target.value.replace(/[^a-zA-Z0-9._@\-]/g, '');
+                            this.formCorreo = event.target.value;
+                        }
+                    },
 
                     get remitentesEncontrados() {
                         if (!this.busqueda.trim() || this.tipo == '2') return [];
@@ -93,6 +146,7 @@
                         this.formNumDoc = remitente.numero_documento || '';
                         this.formTelefono = remitente.telefono || '';
                         this.formCorreo = remitente.correo || '';
+                        this.tipoDocumento = remitente.tipo_documento_identificacion_id || '';
                     },
 
                     limpiarSeleccion() {
@@ -103,6 +157,7 @@
                         this.formNumDoc = '';
                         this.formTelefono = '';
                         this.formCorreo = '';
+                        this.tipoDocumento = '';
                     },
 
                     esNuevoRemitente() {
@@ -119,21 +174,30 @@
                         } else if (this.remitenteSeleccionado) {
                             this.formNombre = this.remitenteSeleccionado.nombre;
                         } else if (this.busqueda.trim()) {
-                            // Para nuevos remitentes, usar lo que escribió en búsqueda
                             this.formNombre = this.busqueda;
                         }
                     }
                 }"
                 x-init="
-                    // Si hay datos viejos (old), inicializar el formulario
                     if ('{{ old('rem_nombre') }}') {
                         formNombre = '{{ old('rem_nombre') }}';
                     }
+                    if ('{{ old('rem_tipo_documento_id') }}') {
+                        tipoDocumento = '{{ old('rem_tipo_documento_id') }}';
+                    }
 
-                    // Watch para sincronizar nombre cuando cambia la búsqueda
                     $watch('busqueda', value => {
                         if (!remitenteSeleccionado && value.trim()) {
-                            formNombre = value;
+                            // Limpiar caracteres no permitidos antes de asignar al nombre
+                            formNombre = value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s'\-]/g, '');
+                        }
+                    });
+
+                    $watch('formTipoDoc', value => {
+                        tipoDocumento = value;
+                        // Limpiar el número de documento al cambiar el tipo
+                        if (!remitenteSeleccionado) {
+                            formNumDoc = '';
                         }
                     });
                 "
@@ -267,11 +331,15 @@
                         <input type="text"
                             name="rem_nombre"
                             x-model="formNombre"
+                            @input="validarNombre($event)"
                             x-init="if (tipo === '2') formNombre = 'Anónimo'"
                             :readonly="tipo === '2' || remitenteSeleccionado"
                             required
+                            maxlength="150"
+                            placeholder="Anónimo"
                             class="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                             :class="{'bg-gray-100': tipo === '2' || remitenteSeleccionado}">
+                        <p class="text-xs text-gray-500 mt-1">Solo letras, espacios, tildes y guiones</p>
                         @error('rem_nombre') <p class="text-red-600 text-sm mt-1">{{ $message }}</p> @enderror
                     </div>
 
@@ -290,7 +358,7 @@
                                     <option value="">Seleccione...</option>
                                     @foreach(App\Models\TipoDocumentoIdentificacion::all() as $tipoDoc)
                                         <option value="{{ $tipoDoc->id }}">
-                                            {{ $tipoDoc->nombre }}
+                                            {{ $tipoDoc->nombre }} ({{ $tipoDoc->abreviatura }})
                                         </option>
                                     @endforeach
                                 </select>
@@ -304,10 +372,23 @@
                                     <input type="text"
                                         name="rem_numero_documento"
                                         x-model="formNumDoc"
+                                        @input="validarDocumento($event)"
                                         :readonly="remitenteSeleccionado"
                                         :required="tipo !== '2'"
+                                        :placeholder="
+                                            formTipoDoc == '1' || formTipoDoc == '2' || formTipoDoc == '3' ? 'Solo números' :
+                                            formTipoDoc == '4' ? 'Ej: A1234567' :
+                                            formTipoDoc == '5' ? 'Ej: 900123456-7' :
+                                            'Seleccione tipo de documento'
+                                        "
+                                        maxlength="20"
                                         class="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                                         :class="{'bg-gray-100': remitenteSeleccionado}">
+                                    <p class="text-xs text-gray-500 mt-1" x-show="formTipoDoc">
+                                        <span x-show="formTipoDoc == '1' || formTipoDoc == '2' || formTipoDoc == '3'">Solo números</span>
+                                        <span x-show="formTipoDoc == '4'">Alfanumérico</span>
+                                        <span x-show="formTipoDoc == '5'">Números y guión</span>
+                                    </p>
                                     @error('rem_numero_documento') <p class="text-red-600 text-sm mt-1">{{ $message }}</p> @enderror
                                 </div>
 
@@ -316,9 +397,13 @@
                                     <input type="text"
                                         name="rem_telefono"
                                         x-model="formTelefono"
+                                        @input="validarTelefono($event)"
                                         :readonly="remitenteSeleccionado"
+                                        maxlength="15"
+                                        placeholder="Ej: 3001234567"
                                         class="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                                         :class="{'bg-gray-100': remitenteSeleccionado}">
+                                    <p class="text-xs text-gray-500 mt-1">Solo números y símbolos telefónicos</p>
                                 </div>
                             </div>
 
@@ -328,10 +413,13 @@
                                 <input type="email"
                                     name="rem_correo"
                                     x-model="formCorreo"
+                                    @input="validarCorreo($event)"
                                     :readonly="remitenteSeleccionado"
+                                    maxlength="100"
                                     class="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                                     :class="{'bg-gray-100': remitenteSeleccionado}"
                                     placeholder="ejemplo@correo.com">
+                                <p class="text-xs text-gray-500 mt-1">Formato válido de correo electrónico</p>
                             </div>
                         </div>
                     </template>
@@ -345,7 +433,8 @@
                 <label class="block text-sm font-medium text-gray-700 mb-1">Asunto</label>
                 <textarea name="asunto" x-model="asunto" maxlength="255"
                           rows="4"
-                          class="w-full p-3 border border-gray-300 rounded-md text-sm resize-y"></textarea>
+                          class="w-full p-3 border border-gray-300 rounded-md text-sm resize-y"
+                          placeholder="Resumen breve del motivo de la solicitud"></textarea>
                 <div class="text-xs text-gray-500 text-right" x-text="asunto.length + ' / 255'"></div>
             </div>
 
@@ -523,4 +612,3 @@ document.getElementById('fecha_ingreso')?.addEventListener('change', function ()
     actualizarFechaVencimiento(this.value);
 });
 </script>
-

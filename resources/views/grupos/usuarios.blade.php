@@ -16,7 +16,10 @@
                         <th class="px-4 py-3 border-b">Nombre</th>
                         <th class="px-4 py-3 border-b">Correo</th>
                         <th class="px-4 py-3 border-b">Administrador</th>
-                        <th class="px-4 py-3 border-b">Bloqueado</th>
+
+                        <!-- Oculto: Bloqueado -->
+                        <th class="px-4 py-3 border-b hidden">Bloqueado</th>
+
                         @if ($esAdmin)
                             <th class="px-4 py-3 border-b">Acciones</th>
                         @endif
@@ -32,11 +35,14 @@
                                     {{ $usuario->pivot->es_administrador ? 'Sí' : 'No' }}
                                 </span>
                             </td>
-                            <td class="px-4 py-3">
+
+                            <!-- Oculto: columna Bloqueado -->
+                            <td class="px-4 py-3 hidden">
                                 <span class="font-semibold {{ $usuario->pivot->bloqueado ? 'text-red-600' : 'text-gray-600' }}">
                                     {{ $usuario->pivot->bloqueado ? 'Sí' : 'No' }}
                                 </span>
                             </td>
+
                             @if ($esAdmin)
                                 <td class="px-4 py-3 text-center">
                                     <div x-data="{ open: false }" class="relative inline-block text-left">
@@ -71,8 +77,11 @@
                                             tabindex="-1"
                                         >
                                             <div class="py-1" role="none">
+
                                                 @if (!$usuario->pivot->es_administrador)
-                                                    <form action="{{ route('grupos.bloquear', [$grupo, $usuario]) }}" method="POST" role="menuitem" tabindex="-1">
+
+                                                    <!-- Oculto: botón Bloquear -->
+                                                    <form action="{{ route('grupos.bloquear', [$grupo, $usuario]) }}" method="POST" role="menuitem" tabindex="-1" class="hidden">
                                                         @csrf
                                                         <button
                                                             type="submit"
@@ -121,7 +130,6 @@
                                         </div>
                                     </div>
                                 </td>
-
                             @endif
                         </tr>
                     @endforeach

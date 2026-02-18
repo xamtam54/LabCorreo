@@ -2,8 +2,7 @@
 <div class="min-h-screen bg-gray-50 py-8 px-6">
     <div class="container mx-auto">
         <h1 class="text-4xl font-extrabold mb-8 text-center text-gray-800">
-            Solicitudes de Todos tus Grupos
-        </h1>
+            Solicitudes de todos los grupos del usuario        </h1>
 
         @if($solicitudes->isEmpty())
             <div class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-6" role="alert">

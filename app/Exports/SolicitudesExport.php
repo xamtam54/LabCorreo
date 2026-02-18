@@ -5,6 +5,7 @@ namespace App\Exports;
 use App\Models\Solicitud;
 use Spatie\SimpleExcel\SimpleExcelWriter;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 
 class SolicitudesExport
@@ -23,7 +24,8 @@ class SolicitudesExport
             'estado',
             'medioRecepcion',
             'usuario',
-            'grupo'
+            'grupo',
+            'remitente'
         ]);
 
         if ($this->request->filled('fecha_inicio')) {
@@ -73,7 +75,7 @@ class SolicitudesExport
                 return [
                     $s->numero_radicado,
                     $s->asunto ?? 'NULL',
-                    $s->remitente ?? 'NULL',
+                    $s->remitente_id->nombre ?? 'NULL',
                     $s->contenido ?? 'NULL',
                     $s->tipoSolicitud->nombre ?? 'No definido',
                     $s->medioRecepcion->nombre ?? 'No definido',
@@ -91,9 +93,16 @@ class SolicitudesExport
             ->toBrowser();
     }
 
-    public function exportToExcel()
-    {
+public function exportToExcel()
+{
+    Log::info('ExportToExcel iniciado');
+
+    try {
         $solicitudes = $this->filteredSolicitudes();
+
+        Log::info('Solicitudes filtradas', [
+            'total' => $solicitudes->count()
+        ]);
 
         return SimpleExcelWriter::streamDownload('solicitudes.xlsx')
             ->noHeaderRow()
@@ -113,13 +122,38 @@ class SolicitudesExport
                 'Completada',
                 'Fecha de Creación',
                 'Hora de Creación'
-
             ])
             ->addRows($solicitudes->map(function ($s) {
+
+                Log::debug('Procesando solicitud', [
+                    'id' => $s->id,
+                    'numero_radicado' => $s->numero_radicado
+                ]);
+
+                // Log si falta alguna relación
+                if (!$s->remitente_id) {
+                    Log::warning("Solicitud {$s->id}: remitente NULL");
+                }
+                if (!$s->tipoSolicitud) {
+                    Log::warning("Solicitud {$s->id}: tipoSolicitud NULL");
+                }
+                if (!$s->medioRecepcion) {
+                    Log::warning("Solicitud {$s->id}: medioRecepcion NULL");
+                }
+                if (!$s->estado) {
+                    Log::warning("Solicitud {$s->id}: estado NULL");
+                }
+                if (!$s->usuario) {
+                    Log::warning("Solicitud {$s->id}: usuario NULL");
+                }
+                if (!$s->grupo) {
+                    Log::warning("Solicitud {$s->id}: grupo NULL");
+                }
+
                 return [
                     $s->numero_radicado,
                     $s->asunto ?? 'NULL',
-                    $s->remitente ?? 'NULL',
+                    $s->remitente->nombre ?? 'NULL', // ← FIX
                     $s->contenido ?? 'NULL',
                     $s->tipoSolicitud->nombre ?? 'No definido',
                     $s->medioRecepcion->nombre ?? 'No definido',
@@ -135,5 +169,17 @@ class SolicitudesExport
                 ];
             }))
             ->toBrowser();
+
+    } catch (\Throwable $e) {
+
+        Log::error('Error en exportToExcel', [
+            'mensaje' => $e->getMessage(),
+            'linea'   => $e->getLine(),
+            'archivo' => $e->getFile(),
+        ]);
+
+        return back()->with('error', 'Ocurrió un error al generar el Excel');
     }
+}
+
 }

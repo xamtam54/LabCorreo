@@ -416,36 +416,124 @@ class SolicitudController extends Controller
     }
 
 
-    public function overview(Request $request)
-    {
-        $query = Solicitud::with('tipoSolicitud', 'estado', 'documentos');
+public function overview(Request $request)
+{
+    $query = Solicitud::with('tipoSolicitud', 'estado', 'documentos');
 
-        if ($request->filled('fecha_inicio')) {
-            $query->whereDate('fecha_ingreso', '>=', $request->fecha_inicio);
-        }
-
-        if ($request->filled('fecha_fin')) {
-            $query->whereDate('fecha_ingreso', '<=', $request->fecha_fin);
-        }
-
-        if ($request->filled('usuario_id')) {
-            $query->where('usuario_id', $request->usuario_id);
-        }
-
-        if ($request->filled('grupo_id')) {
-            $query->where('grupo_id', $request->grupo_id);
-        }
-
-        $solicitudes = $query->get();
-
-        $porTipo = $solicitudes->groupBy('tipoSolicitud.nombre')->map->count();
-        $porEstado = $solicitudes->groupBy('estado.nombre')->map->count();
-
-        $usuarios = User::all();
-        $grupos = Grupo::all();
-
-        return view('solicitudes.overview', compact('porTipo', 'porEstado', 'solicitudes', 'usuarios', 'grupos'));
+    // --- FILTROS ---
+    if ($request->filled('fecha_inicio')) {
+        $query->whereDate('fecha_ingreso', '>=', $request->fecha_inicio);
     }
+
+    if ($request->filled('fecha_fin')) {
+        $query->whereDate('fecha_ingreso', '<=', $request->fecha_fin);
+    }
+
+    if ($request->filled('usuario_id')) {
+        $query->where('usuario_id', $request->usuario_id);
+    }
+
+    if ($request->filled('grupo_id')) {
+        $query->where('grupo_id', $request->grupo_id);
+    }
+
+    // Cargar solicitudes filtradas
+    $solicitudes = $query->get();
+
+
+    /* ------------------------------------------------------------------
+     * 1) SOLICITUDES POR MES (TENDENCIA)
+     * ------------------------------------------------------------------ */
+    $porMes = $solicitudes
+        ->groupBy(fn ($s) => Carbon::parse($s->fecha_ingreso)->format('Y-m'))
+        ->map->count()
+        ->sortKeys();
+
+
+    /* ------------------------------------------------------------------
+     * 2) SOLICITUDES VENCIDAS VS NO VENCIDAS
+     * ------------------------------------------------------------------ */
+    $cerradosIds = DB::table('estado_solicitud')
+        ->whereIn('nombre', ['Cerrada', 'Respondida'])
+        ->pluck('id')
+        ->toArray();
+
+    $now = Carbon::now();
+
+    $vencidas = $solicitudes->filter(function ($s) use ($now, $cerradosIds) {
+        if (!$s->fecha_vencimiento) return false;
+
+        $fv = Carbon::parse($s->fecha_vencimiento);
+
+        return $fv->lt($now) && !in_array($s->estado_id, $cerradosIds);
+    })->count();
+
+    $totales = $solicitudes->count();
+
+    $porcentajeVencidas = ($totales > 0)
+        ? round(($vencidas / $totales) * 100, 2)
+        : 0;
+
+    $donutData = [$vencidas, max($totales - $vencidas, 0)];
+
+
+    /* ------------------------------------------------------------------
+    * 3) TIEMPO PROMEDIO DE RESPUESTA POR TIPO (DÍAS)
+    * ------------------------------------------------------------------ */
+    $cerradas = $solicitudes->filter(function ($s) use ($cerradosIds) {
+        return in_array($s->estado_id, $cerradosIds)
+            || (!empty($s->completada) && $s->completada);
+    });
+
+    $tiempoPromedioPorTipo = $cerradas
+        ->groupBy(fn ($s) => optional($s->tipoSolicitud)->nombre ?? 'Sin tipo')
+        ->map(function ($grupo) {
+
+            $dias = $grupo->map(function ($s) {
+                $inicio = Carbon::parse($s->fecha_ingreso);
+
+                // Selección segura de la fecha fin
+                if (!empty($s->fecha_vencimiento)) {
+                    $fin = Carbon::parse($s->fecha_vencimiento);
+                } else {
+                    $fin = Carbon::parse($s->updated_at);
+                }
+
+                // Evitar valores negativos
+                if ($fin->lt($inicio)) {
+                    $fin = $inicio;
+                }
+
+                // Convertir segundos → días con decimales
+                return $inicio->diffInSeconds($fin) / 86400;
+            });
+
+            // Promedio en días con 2 decimales
+            return round($dias->avg(), 2);
+        });
+
+
+
+    /* ------------------------------------------------------------------
+     * Para filtros (no se muestran en gráficos)
+     * ------------------------------------------------------------------ */
+    $usuarios = User::all();
+    $grupos = Grupo::all();
+
+    return view('solicitudes.overview', compact(
+        'porMes',
+        'vencidas',
+        'totales',
+        'porcentajeVencidas',
+        'donutData',
+        'tiempoPromedioPorTipo',
+        'solicitudes',
+        'usuarios',
+        'grupos'
+    ));
+}
+
+
 
     public function dashboard(Request $request)
     {
@@ -494,7 +582,7 @@ class SolicitudController extends Controller
         return view('solicitudes.dashboard', compact('solicitudes'));
     }
 
-    
+
     public function show(Grupo $grupo, Solicitud $solicitud)
     {
         // Cargar documentos ordenados
